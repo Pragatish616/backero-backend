@@ -19,7 +19,7 @@ def _get_client():
         if not key or key == "your-gemini-api-key-here":
             return None
         genai.configure(api_key=key)
-        _client = genai.GenerativeModel("gemini-2.0-flash")
+        _client = genai.GenerativeModel("gemini-1.5-flash")
     return _client
 
 
