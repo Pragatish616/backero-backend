@@ -225,6 +225,16 @@ def generate_screenplay(supabase, brief_id: str) -> dict:
     # ── Try Claude AI first ──────────────────────────────────
     scenes_raw = generate_screenplay_ai(phase1, phase2)
 
+    # Safety check: the AI sometimes mis-numbers scenes or returns fewer
+    # than expected. If we didn't get a full 5-scene screenplay back,
+    # don't trust it — fall through to the reliable template generator
+    # instead of shipping a broken/incomplete screenplay.
+    if scenes_raw and len(scenes_raw) < 5:
+        print(f"[Phase3] AI returned only {len(scenes_raw)} scenes (expected 5) — using template fallback")
+        scenes_raw = None
+
+    ai_was_used = scenes_raw is not None
+
     if scenes_raw:
         scenes = []
         for raw in scenes_raw:
@@ -232,7 +242,14 @@ def generate_screenplay(supabase, brief_id: str) -> dict:
                 cam_raw = raw.get("camera", {})
                 act_raw = raw.get("actor", {})
                 beat = SceneBeat(
-                    sceneNum=int(raw.get("sceneNum", len(scenes) + 1)),
+                    # IMPORTANT: never trust the AI's own "sceneNum" field —
+                    # it has been observed to mis-number scenes (e.g.
+                    # starting at 2 instead of 1, skipping the hook scene).
+                    # Always assign sequential numbers ourselves based on
+                    # the actual order the AI returned the scenes in, so
+                    # scene numbering is always correct (1, 2, 3, 4, 5)
+                    # regardless of what number string the model wrote.
+                    sceneNum=len(scenes) + 1,
                     name=raw.get("name", f"SCENE {len(scenes)+1}"),
                     timingStart=float(raw.get("timingStart", 0)),
                     timingEnd=float(raw.get("timingEnd", 5)),
@@ -259,11 +276,20 @@ def generate_screenplay(supabase, brief_id: str) -> dict:
                 scenes.append(beat)
             except Exception as e:
                 print(f"[Phase3] Scene parse error: {e}")
-    else:
+
+        # If parsing errors dropped us below 5 scenes too, fall back to
+        # the template generator rather than shipping a partial screenplay.
+        if len(scenes) < 5:
+            print(f"[Phase3] Only {len(scenes)} scenes parsed successfully — using template fallback")
+            scenes = []
+            ai_was_used = False
+
+    if not scenes_raw or not scenes:
         # ── Fallback: template-based generation ─────────────
-        print("[Phase3] Claude unavailable — using template fallback")
+        print("[Phase3] Claude unavailable or returned invalid data — using template fallback")
         templates = get_scene_template(structure)
         scenes = [generate_scene_beat(tmpl, phase1, phase2, nuggets, i) for i, tmpl in enumerate(templates)]
+        ai_was_used = False
 
     metrics = calculate_metrics(scenes)
     golden_rules = validate_golden_rules(scenes)
@@ -281,7 +307,7 @@ def generate_screenplay(supabase, brief_id: str) -> dict:
 
     return {
         "generated": True,
-        "ai_generated": scenes_raw is not None,
+        "ai_generated": ai_was_used,
         "scenes": scenes_json,
         "total_runtime_sec": metrics["total_runtime_sec"],
         "total_words": metrics["total_words"],
