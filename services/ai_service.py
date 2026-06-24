@@ -1,5 +1,5 @@
 """
-ai_service.py â All AI calls using Anthropic Claude.
+ai_service.py — All AI calls using Anthropic Claude.
 
 Model: claude-sonnet-4-6 (fast, great at JSON)
 Falls back to hardcoded templates gracefully if ANTHROPIC_API_KEY is missing.
@@ -23,7 +23,7 @@ def _get_client():
 
 
 def _ask(prompt: str, system: str = "") -> Optional[str]:
-    """Single Claude call â returns text or None on failure."""
+    """Single Claude call — returns text or None on failure."""
     client = _get_client()
     if not client:
         return None
@@ -53,9 +53,9 @@ def _parse_json(text: str) -> Optional[dict | list]:
         return None
 
 
-# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
-#  PHASE 1 â Nugget Extraction
-# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+# ───────────────────────────────────────────────────────────────
+#  PHASE 1 — Nugget Extraction
+# ───────────────────────────────────────────────────────────────
 
 def extract_nuggets_ai(topic: str, research_text: str = "", niche: str = "") -> list[dict]:
     context = research_text if research_text else f"Topic: {topic}, Niche: {niche}"
@@ -78,7 +78,7 @@ Return ONLY a JSON array with exactly 3 objects. Each object must have:
 
 Rules:
 - Include specific numbers or percentages where possible
-- Each nugget must be specific to "{topic}" â no generic filler
+- Each nugget must be specific to "{topic}" — no generic filler
 - Shocking Fact: counterintuitive or surprising stat
 - Practical Hack: immediately actionable in under 60 seconds
 - Story Hook: creates curiosity about a personal result
@@ -107,9 +107,9 @@ Return ONLY the JSON array, no other text."""
     ]
 
 
-# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
-#  PHASE 1 â Hook Validation AI Enhancement
-# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+# ───────────────────────────────────────────────────────────────
+#  PHASE 1 — Hook Validation AI Enhancement
+# ───────────────────────────────────────────────────────────────
 
 def enhance_hook_validation(hook_text: str, base_result: dict) -> dict:
     if base_result.get("valid"):
@@ -135,9 +135,9 @@ Return ONLY JSON:
     return base_result
 
 
-# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
-#  PHASE 3 â Screenplay Generation
-# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+# ───────────────────────────────────────────────────────────────
+#  PHASE 3 — Screenplay Generation
+# ───────────────────────────────────────────────────────────────
 
 def generate_screenplay_ai(phase1: dict, phase2: dict) -> Optional[list[dict]]:
     topic = phase1.get("topic", phase1.get("hook_text", "the topic"))
@@ -166,14 +166,23 @@ VIDEO BRIEF:
 
 Generate exactly 5 scenes following the "{structure}" structure.
 
+IMPORTANT: Regardless of the structure name, the very FIRST scene
+(sceneNum 1) must always be a 0-3 second attention-grabbing HOOK that
+uses this exact hook text: "{hook or topic}". This hook scene comes
+BEFORE the structure's own first beat (e.g. before "Problem" in a PAS
+structure, before "Step 1" in a Step-by-Step structure, etc). Do not
+skip it and do not merge it with the next scene. Number the remaining
+4 scenes sceneNum 2 through 5 in order, following the rest of the
+"{structure}" structure.
+
 Return ONLY a JSON array of 5 scene objects. Each scene must have:
-- "sceneNum": integer (1-5)
+- "sceneNum": integer (1-5, scene 1 is always the hook described above)
 - "name": scene name in CAPS (e.g. "THE HOOK", "AUTHORITY GAP", "THE HACK", "THE PROOF", "CTA")
 - "timingStart": float seconds
 - "timingEnd": float seconds
 - "duration": float (timingEnd - timingStart)
-- "dialogue": exact words the actor says â specific to {topic}, punchy, under 20 words per scene
-- "action": parenthetical director note â what the actor does physically (start with "(Actor ")
+- "dialogue": exact words the actor says — specific to {topic}, punchy, under 20 words per scene
+- "action": parenthetical director note — what the actor does physically (start with "(Actor ")
 - "camera": object with "shot" (e.g. "Close-up"), "angle" (e.g. "Low angle"), "movement" (e.g. "Push in")
 - "actor": object with "expression" (string), "energy" (integer 1-10), "pace" ("fast"/"medium"/"slow")
 - "visual": text overlay or editor direction (e.g. "BOLD TEXT: '73%' appears at 0.3s")
@@ -184,7 +193,7 @@ Rules:
 - Total runtime 28-32 seconds across all 5 scenes
 - Scene 1 THE HOOK must be 0-3 seconds using the hook text: "{hook or topic}"
 - Scene 5 CTA must end with "Follow for more {niche.lower() or 'tips'}" style call to action
-- All dialogue must be specific to "{topic}" â absolutely no generic filler
+- All dialogue must be specific to "{topic}" — absolutely no generic filler
 - Make it native to {platform} platform
 
 Return ONLY the JSON array, nothing else."""
@@ -194,14 +203,14 @@ Return ONLY the JSON array, nothing else."""
         return None
 
     parsed = _parse_json(raw)
-    if isinstance(parsed, list) and len(parsed) >= 3:
+    if isinstance(parsed, list) and len(parsed) >= 5:
         return parsed
     return None
 
 
-# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
-#  PHASE 3 â Single Scene Regeneration
-# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+# ───────────────────────────────────────────────────────────────
+#  PHASE 3 — Single Scene Regeneration
+# ───────────────────────────────────────────────────────────────
 
 def regenerate_scene_ai(scene: dict, phase1: dict, phase2: dict, direction: str = "") -> Optional[dict]:
     topic = phase1.get("topic", "the topic")
@@ -224,9 +233,9 @@ Improve the dialogue, action, visual and audio directions. Keep timing identical
     return None
 
 
-# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
-#  PHASE 4 â Quality Fix Suggestions
-# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+# ───────────────────────────────────────────────────────────────
+#  PHASE 4 — Quality Fix Suggestions
+# ───────────────────────────────────────────────────────────────
 
 def get_fix_suggestions_ai(failed_checks: list[dict], scenes: list[dict], topic: str) -> dict:
     if not failed_checks:
@@ -255,16 +264,16 @@ Return ONLY JSON:
     return {}
 
 
-# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
-#  PHASE 5 â Production Summary
-# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+# ───────────────────────────────────────────────────────────────
+#  PHASE 5 — Production Summary
+# ───────────────────────────────────────────────────────────────
 
 def generate_production_summary_ai(meta: dict, scenes: list[dict]) -> Optional[str]:
     title = meta.get("title", "Video")
     platform = meta.get("platform", "")
     fmt = meta.get("format", "")
     score = meta.get("score", 0)
-    scenes_summary = " â ".join([s.get("name", "") for s in scenes[:6]])
+    scenes_summary = " → ".join([s.get("name", "") for s in scenes[:6]])
 
     prompt = f"""Write a 3-sentence executive production summary for this viral video brief.
 
@@ -274,6 +283,6 @@ Format: {fmt}
 Structure: {scenes_summary}
 Quality Score: {score}/100
 
-Make it sound like a professional production brief â confident, specific, actionable. No bullet points."""
+Make it sound like a professional production brief — confident, specific, actionable. No bullet points."""
 
     return _ask(prompt)
