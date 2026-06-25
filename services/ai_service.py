@@ -3,90 +3,10 @@ import os, json, re
 from typing import Optional
 
 LANGUAGE_INSTRUCTIONS = {
-        "EN": "Write everything in English.",
-        "HI": "Write all dialogue and on-screen text in Hindi (Devanagari script). Use conversational Hindi.",
-        "TA": "Write all dialogue and on-screen text in Tamil. Use colloquial Tamil Nadu spoken Tamil.",
-        "HIN-EN": "Write dialogue in Hinglish - natural Hindi+English mix as spoken by urban Indian youth. Use Roman script.",
-        "TE": "Write all dialogue and on-screen text in Telugu.",
-        "KN": "Write all dialogue and on-screen text in Kannada.",
-        "ML": "Write all dialogue and on-screen text in Malayalam.",
-        "MR": "Write all dialogue and on-screen text in Marathi.",
-        "BN": "Write all dialogue and on-screen text in Bengali.",
-        "GU": "Write all dialogue and on-screen text in Gujarati.",
-}
-
-_client = None
-
-def _get_client():
-        global _client
-        if _client is None:
-                    from anthropic import Anthropic
-                    key = os.getenv("ANTHROPIC_API_KEY", "").strip()
-                    if not key or key == "your-anthropic-api-key-here":
-                                    return None
-                                _client = Anthropic(api_key=key)
-                return _client
-
-def _ask(prompt: str, system: str = "") -> Optional[str]:
-        client = _get_client()
-    if not client:
-                return None
-            try:
-                        kwargs = {
-                                        "model": "claude-sonnet-4-6",
-                                        "max_tokens": 4096,
-                                        "messages": [{"role": "user", "content": prompt}],
-                        }
-                        if system:
-                                        kwargs["system"] = system
-                                    response = client.messages.create(**kwargs)
-        return response.content[0].text.strip()
-except Exception as e:
-        print(f"[AI] Claude call failed: {e}")
-        return None
-
-def _parse_json(text: str) -> Optional[dict | list]:
-        text = re.sub(r"^```(?:json)?\s*", "", text.strip(), flags=re.MULTILINE)
-    text = re.sub(r"\s*```$", "", text.strip(), flags=re.MULTILINE)
-    try:
-                return json.loads(text.strip())
-except Exception:
-        return None
-
-
-def _nugget_fallback(topic: str, niche: str = "") -> list[dict]:
-        t = topic.lower()
-    n = niche.lower() if niche else "this"
-    return [
-                {"type": "Shocking Fact", "text": f"Most {n} experts won't tell you this about {t}", "source": "Industry Data 2025", "rationale": "Creates us-vs-them dynamic that drives shares", "color": "#EF4444"},
-                {"type": "Practical Hack", "text": f"The 2-minute {t} technique professionals actually use daily", "source": "Expert Interviews", "rationale": "Immediacy + exclusivity = saves and shares", "color": "#22C55E"},
-                {"type": "Story Hook", "text": f"I changed one thing about {t} and got 3x better results in a week", "source": "Personal Experience", "rationale": "Specific outcome teaser triggers curiosity gap", "color": "#F59E0B"},
-    ]
-
-def extract_nuggets_ai(topic: str, research_text: str = "", niche: str = "", language: str = "EN") -> list[dict]:
-        lang_instruction = LANGUAGE_INSTRUCTIONS.get(language, LANGUAGE_INSTRUCTIONS["EN"])
-    context = research_text if research_text else f"Topic: {topic}, Niche: {niche}"
-    system = (
-                "You are a world-class viral short-form video strategist who has helped 500+ creators hit 10M+ views. "
-                "You have deep expertise in what makes content go viral on Instagram Reels, YouTube Shorts, and TikTok. "
-                "You ONLY return valid JSON arrays with no extra text."
-    )
-    prompt = f"""Extract 3 Knowledge Nuggets for a viral video about: "{topic}"
-Niche: {niche or "General"}
-LANGUAGE: {lang_instruction}
-import os, json, re
-from typing import Optional
-
-LANGUAGE_INSTRUCTIONS = {
-    "EN": "Write everything in English.",
-import os, json, re
-from typing import Optional
-
-LANGUAGE_INSTRUCTIONS = {
     "EN": "Write everything in English.",
     "HI": "Write all dialogue and on-screen text in Hindi (Devanagari script). Use conversational Hindi.",
     "TA": "Write all dialogue and on-screen text in Tamil. Use colloquial Tamil Nadu spoken Tamil.",
-    "HIN-EN": "Write in Hinglish - natural Hindi+English mix as spoken by urban Indian youth. Use Roman script.",
+    "HIN-EN": "Write dialogue in Hinglish - natural Hindi+English mix as spoken by urban Indian youth. Use Roman script.",
     "TE": "Write all dialogue and on-screen text in Telugu.",
     "KN": "Write all dialogue and on-screen text in Kannada.",
     "ML": "Write all dialogue and on-screen text in Malayalam.",
