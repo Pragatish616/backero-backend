@@ -4,7 +4,7 @@ from pydantic import BaseModel
 
 
 class KnowledgeNugget(BaseModel):
-    type: str  # "Shocking Fact" | "Practical Hack" | "Story Hook"
+    type: str
     text: str
     source: str = ""
     rationale: str = ""
