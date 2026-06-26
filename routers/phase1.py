@@ -7,16 +7,14 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 from db.supabase_client import get_supabase
+from services import phase1_service
 from models.phase1 import (
-    Phase1Data,
     Phase1CreateRequest,
     HookValidationRequest,
     HookValidationResponse,
     NuggetExtractionRequest,
     NuggetSelectionRequest,
 )
-from services import phase1_service
-
 router = APIRouter(prefix="/phase1", tags=["Phase 1"])
 
 
