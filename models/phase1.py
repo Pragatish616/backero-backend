@@ -83,5 +83,3 @@ class HookValidationResponse(BaseModel):
 class NuggetExtractionRequest(BaseModel):
     topic: str
     research_text: str = ""
-
-    research_text: str = ""
