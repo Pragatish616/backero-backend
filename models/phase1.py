@@ -53,7 +53,7 @@ class Phase1CreateRequest(BaseModel):
     hook_text: Optional[str] = None
     knowledge_nuggets: Optional[list[KnowledgeNugget]] = None
     blacklist_words: Optional[list[str]] = None
-    ai_generated: bool = False
+    ai_generated: Optional[bool] = None
     batch_id: Optional[str] = None
     production_date: Optional[str] = None
     on_camera_actor: Optional[str] = None
@@ -82,4 +82,6 @@ class HookValidationResponse(BaseModel):
 
 class NuggetExtractionRequest(BaseModel):
     topic: str
+    research_text: str = ""
+
     research_text: str = ""
