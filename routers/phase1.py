@@ -78,3 +78,43 @@ def get_sub_niches(niche: str):
     if not subs:
         raise HTTPException(404, f"Niche '{niche}' not found")
     return {"niche": niche, "sub_niches": subs}
+
+
+# ── Dynamic Fluff Examples ─────────────────────────────────────────────────
+
+@router.post("/{brief_id}/fluff-examples")
+def get_fluff_examples(brief_id: str, body: dict = {}):
+    niche = body.get("niche", "")
+    topic = body.get("topic", "")
+    if not niche:
+        try:
+            sb = get_supabase()
+            p1 = sb.table("phase1_data").select("niche, topic").eq("brief_id", brief_id).execute()
+            if p1.data:
+                niche = p1.data[0].get("niche", "General")
+                topic = topic or p1.data[0].get("topic", "")
+        except Exception:
+            niche = "General"
+    from services.ai_service import generate_fluff_examples
+    examples = generate_fluff_examples(niche, topic)
+    return {"success": True, "examples": examples}
+
+
+# ── AI Topic Suggestions ──────────────────────────────────────────────────
+
+@router.post("/{brief_id}/suggest-topics")
+def suggest_topics_endpoint(brief_id: str, body: dict = {}):
+    niche = body.get("niche", "")
+    sub_niche = body.get("sub_niche", "")
+    if not niche:
+        try:
+            sb = get_supabase()
+            p1 = sb.table("phase1_data").select("niche, sub_niche").eq("brief_id", brief_id).execute()
+            if p1.data:
+                niche = p1.data[0].get("niche", "General")
+                sub_niche = sub_niche or p1.data[0].get("sub_niche", "")
+        except Exception:
+            niche = "General"
+    from services.ai_service import suggest_topics
+    topics = suggest_topics(niche, sub_niche)
+    return {"success": True, "topics": topics}
