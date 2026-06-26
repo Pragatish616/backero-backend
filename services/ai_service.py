@@ -25,16 +25,17 @@ def _get_client():
 
 
 LANGUAGE_INSTRUCTIONS = {
-    "EN": "Respond in English.",
-    "HI": "Respond in Hindi (Devanagari script).",
-    "TA": "Respond in Tamil.",
-    "TE": "Respond in Telugu.",
-    "KN": "Respond in Kannada.",
-    "ML": "Respond in Malayalam.",
-    "BN": "Respond in Bengali.",
-    "MR": "Respond in Marathi.",
-    "GU": "Respond in Gujarati.",
-    "PA": "Respond in Punjabi.",
+    "EN": "LANGUAGE: Write ALL output in English only.",
+    "HI": "LANGUAGE: Write ALL output — every word, phrase, and sentence — in Hindi using Devanagari script (हिंदी). Do NOT use English except for proper nouns that have no Hindi equivalent.",
+    "TA": "LANGUAGE: Write ALL output — every word, phrase, and sentence — in Tamil script (தமிழ்). Do NOT use English except for proper nouns.",
+    "TE": "LANGUAGE: Write ALL output — every word, phrase, and sentence — in Telugu script (తెలుగు). Do NOT use English except for proper nouns.",
+    "KN": "LANGUAGE: Write ALL output — every word, phrase, and sentence — in Kannada script (ಕನ್ನಡ). Do NOT use English except for proper nouns.",
+    "ML": "LANGUAGE: Write ALL output — every word, phrase, and sentence — in Malayalam script (മലയാളം). Do NOT use English except for proper nouns.",
+    "BN": "LANGUAGE: Write ALL output — every word, phrase, and sentence — in Bengali script (বাংলা). Do NOT use English except for proper nouns.",
+    "MR": "LANGUAGE: Write ALL output — every word, phrase, and sentence — in Marathi using Devanagari script (मराठी). Do NOT use English except for proper nouns.",
+    "GU": "LANGUAGE: Write ALL output — every word, phrase, and sentence — in Gujarati script (ગુજરાતી). Do NOT use English except for proper nouns.",
+    "PA": "LANGUAGE: Write ALL output — every word, phrase, and sentence — in Punjabi/Gurmukhi script (ਪੰਜਾਬੀ). Do NOT use English except for proper nouns.",
+    "HIN-EN": "LANGUAGE: Write ALL output in Hinglish — natural Hindi+English mix as spoken by urban Indian youth. Use Roman script throughout (not Devanagari). Example style: 'Yaar, ye trick try karo — 40% faster results milenge'.",
 }
 
 
@@ -214,6 +215,7 @@ def extract_nuggets_ai(topic: str, research_text: str = "", niche: str = "",
     system_prompt = f"""You are a world-class viral short-form video strategist who has helped 500+ creators hit 10M+ views on Instagram Reels, YouTube Shorts, and TikTok.
 
 {lang_instruction}
+IMPORTANT: The "text" field of every nugget MUST be written in the language specified above. The "type", "source", "rationale" fields may stay in English for technical compatibility, but the "text" must be in the target language.
 
 Your task: Extract exactly 3 DIFFERENT knowledge nuggets from the given topic/research. Each nugget must be:
 - Maximum 15 words
@@ -327,7 +329,7 @@ def generate_screenplay_ai(phase1: dict, phase2: dict, language: str = "EN") -> 
     topic = phase1.get("topic", "")
     platform = phase1.get("platform", "YouTube Shorts")
     niche = phase1.get("niche", "")
-    hook = phase1.get("hook_text", phase1.get("hook", ""))
+    hook = phase1.get("hook", "")
 
     content_type = phase2.get("content_type", "educational")
     format_style = phase2.get("format", "talking_head")
@@ -405,7 +407,7 @@ Return as JSON:
 def _screenplay_fallback(phase1: dict, phase2: dict) -> dict:
     """Fallback screenplay when API fails"""
     topic = phase1.get("topic", "your topic")
-    hook = phase1.get("hook_text", phase1.get("hook", "Wait, did you know this?"))
+    hook = phase1.get("hook", "Wait, did you know this?")
     selected_nugget = phase1.get("selected_nugget", {})
     nugget_text = selected_nugget.get("text", f"the truth about {topic}")
 
@@ -640,33 +642,75 @@ def _production_fallback(phase1: dict, phase3: dict) -> dict:
     }
 
 
-def generate_fluff_examples_ai(topic: str, niche: str = "", language: str = "EN") -> list[str]:
-    """Generate examples of fluff/filler words to avoid"""
+def generate_fluff_examples_ai(topic: str, niche: str = "", language: str = "EN") -> list[dict]:
+    """
+    Generate 3 niche+topic specific fluff vs specific example pairs.
+    Returns [{fluff: str, specific: str}] in the selected language.
+    """
     client = _get_client()
     if not client:
-        return ["basically", "actually", "you know", "like", "so yeah"]
+        return _fluff_fallback(topic, niche)
 
     lang_instruction = LANGUAGE_INSTRUCTIONS.get(language, LANGUAGE_INSTRUCTIONS["EN"])
+    lang_name = {
+        "EN": "English", "HI": "Hindi", "TA": "Tamil", "TE": "Telugu",
+        "KN": "Kannada", "ML": "Malayalam", "BN": "Bengali",
+        "MR": "Marathi", "GU": "Gujarati", "PA": "Punjabi",
+    }.get(language, "English")
 
-    prompt = f"""{lang_instruction}
+    prompt = f"""You are a viral content editor who rewrites generic copy into scroll-stopping specifics.
 
-Topic: {topic}
-Niche: {niche}
+CRITICAL LANGUAGE RULE: {lang_instruction}
+Every single word in your output — both the fluff example AND the specific rewrite — MUST be written in {lang_name}. No exceptions. No English fallback.
 
-Generate 5 specific fluff phrases that creators in this niche overuse and should avoid.
-These should be clichés or filler words specific to the topic.
+TASK: Generate 3 "Fluff vs Specific" example pairs for a creator making content about:
+- Topic: "{topic}"
+- Niche: "{niche or 'General'}"
 
-Return ONLY a JSON array of 5 strings:
-["fluff phrase 1", "fluff phrase 2", "fluff phrase 3", "fluff phrase 4", "fluff phrase 5"]"""
+Rules for the FLUFF example (bad generic writing):
+- Vague claim with zero specifics
+- Could apply to ANY topic in any niche
+- Sounds like AI-generated filler
 
-    result = _ask(prompt, "", max_tokens=512)
+Rules for the SPECIFIC rewrite (good viral writing):
+- Contains at least ONE real number, percentage, timeframe, or dollar amount
+- Is clearly about "{topic}" — could not be about anything else
+- Sounds like something a real person would say to a friend
+
+Return ONLY a valid JSON array of exactly 3 objects. No markdown, no explanation:
+[
+  {{"fluff": "vague bad line in {lang_name}", "specific": "specific good rewrite in {lang_name}"}},
+  {{"fluff": "vague bad line in {lang_name}", "specific": "specific good rewrite in {lang_name}"}},
+  {{"fluff": "vague bad line in {lang_name}", "specific": "specific good rewrite in {lang_name}"}}
+]"""
+
+    result = _ask(prompt, "", max_tokens=1024)
     if not result:
-        return ["basically", "actually", "you know", "like", "so yeah"]
+        return _fluff_fallback(topic, niche)
 
     try:
-        return _parse_json(result)
-    except:
-        return ["basically", "actually", "you know", "like", "so yeah"]
+        parsed = _parse_json(result)
+        if isinstance(parsed, list) and len(parsed) >= 3:
+            # Validate structure
+            validated = []
+            for item in parsed[:3]:
+                if isinstance(item, dict) and "fluff" in item and "specific" in item:
+                    validated.append({"fluff": str(item["fluff"]), "specific": str(item["specific"])})
+            if len(validated) == 3:
+                return validated
+        return _fluff_fallback(topic, niche)
+    except Exception:
+        return _fluff_fallback(topic, niche)
+
+
+def _fluff_fallback(topic: str, niche: str) -> list[dict]:
+    """Fallback fluff pairs when API is unavailable — generic but structured correctly."""
+    t = topic or niche or "this topic"
+    return [
+        {"fluff": f"This {t} tip is amazing", "specific": f"This {t} method cut my time by 40% in 7 days"},
+        {"fluff": f"You should really try this", "specific": f"I tested 11 {t} methods — only this one actually worked"},
+        {"fluff": f"Everyone is talking about this", "specific": f"This {t} trick got 2.1M views because it saves $180/month"},
+    ]
 
 
 def suggest_topics_ai(niche: str, sub_niche: str = "", language: str = "EN") -> list[dict]:
