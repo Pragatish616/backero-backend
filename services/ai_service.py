@@ -1,394 +1,538 @@
-from __future__ import annotations
-import os, json, re
-from typing import Optional
+import os
+  import re
+  import json
+  from typing import Optional
+  from anthropic import Anthropic
 
-LANGUAGE_INSTRUCTIONS = {
-    "EN": "Write everything in English.",
-    "HI": "Write all dialogue and on-screen text in Hindi (Devanagari script). Use conversational Hindi.",
-    "TA": "Write all dialogue and on-screen text in Tamil. Use colloquial Tamil Nadu spoken Tamil.",
-    "HIN-EN": "Write dialogue in Hinglish - natural Hindi+English mix as spoken by urban Indian youth. Use Roman script.",
-    "TE": "Write all dialogue and on-screen text in Telugu.",
-    "KN": "Write all dialogue and on-screen text in Kannada.",
-    "ML": "Write all dialogue and on-screen text in Malayalam.",
-    "MR": "Write all dialogue and on-screen text in Marathi.",
-    "BN": "Write all dialogue and on-screen text in Bengali.",
-    "GU": "Write all dialogue and on-screen text in Gujarati.",
-}
+  _client = None
 
-_client = None
+  def _get_client():
+      global _client
+      if _client:
+          return _client
+      key = os.getenv("ANTHROPIC_API_KEY", "").strip()
+      if not key or key == "your-anthropic-api-key-here":
+          return None
+      _client = Anthropic(api_key=key)
+      return _client
 
-def _get_client():
-    global _client
-    if _client is None:
-        from anthropic import Anthropic
-        key = os.getenv("ANTHROPIC_API_KEY", "").strip()
-        if not key or key == "your-anthropic-api-key-here":
-            return None
-        _client = Anthropic(api_key=key)
-    return _client
+  LANGUAGE_INSTRUCTIONS = {
+      "EN": "Respond in English.",
+      "HI": "Respond in Hindi (Devanagari script).",
+      "TA": "Respond in Tamil.",
+      "TE": "Respond in Telugu.",
+      "KN": "Respond in Kannada.",
+      "ML": "Respond in Malayalam.",
+      "BN": "Respond in Bengali.",
+      "MR": "Respond in Marathi.",
+      "GU": "Respond in Gujarati.",
+      "PA": "Respond in Punjabi.",
+  }
 
-def _ask(prompt: str, system: str = "") -> Optional[str]:
-    client = _get_client()
-    if not client:
-        return None
-    try:
-        kwargs = {
-            "model": "claude-sonnet-4-6",
-            "max_tokens": 4096,
-            "messages": [{"role": "user", "content": prompt}],
-        }
-        if system:
-            kwargs["system"] = system
-        response = client.messages.create(**kwargs)
-        return response.content[0].text.strip()
-    except Exception as e:
-        print(f"[AI] Claude call failed: {e}")
-        return None
+  def _get_phase_system_prompt(phase_number: int, previous_phase_data: dict) -> str:
+      previous_data_str = json.dumps(previous_phase_data, indent=2, default=str)
 
-def _parse_json(text: str):
-    text = re.sub(r"^```(?:json)?\s*", "", text.strip(), flags=re.MULTILINE)
-    text = re.sub(r"\s*```$", "", text.strip(), flags=re.MULTILINE)
-    try:
-        return json.loads(text.strip())
-    except Exception:
-        return None
+      return f"""You are AXIS-7, an elite viral video scriptwriter with 847M cumulative views across TikTok, YouTube Shorts, and Instagram Reels. You execute ONE phase at a time with surgical precision.
 
-# ── PHASE 1: Nugget Extraction ──────────────────────────────────────────────
+  ═══════════════════════════════════════════════════════════════════════════════
+                           PHASE EXECUTION PROTOCOL
+  ═══════════════════════════════════════════════════════════════════════════════
 
-def _nugget_fallback(topic: str, niche: str = "") -> list[dict]:
-    t = topic.lower()
-    n = niche.lower() if niche else "this"
-    return [
-        {"type": "Shocking Fact", "text": f"Most {n} experts hide this truth about {t}", "source": "Industry Data 2025", "rationale": "Creates us-vs-them tension that drives shares", "color": "#EF4444"},
-        {"type": "Practical Hack", "text": f"The 2-minute {t} technique professionals actually use", "source": "Expert Interviews", "rationale": "Immediacy plus exclusivity triggers saves", "color": "#22C55E"},
-        {"type": "Story Hook", "text": f"I changed one thing about {t} — got 3x results in 7 days", "source": "Personal Experience", "rationale": "Specific outcome teaser triggers curiosity gap", "color": "#F59E0B"},
-    ]
+  CURRENT PHASE: {phase_number}
+  PREVIOUS DATA: {previous_data_str}
 
-def extract_nuggets_ai(topic: str, research_text: str = "", niche: str = "", language: str = "EN") -> list[dict]:
-    lang_instruction = LANGUAGE_INSTRUCTIONS.get(language, LANGUAGE_INSTRUCTIONS["EN"])
-    context = research_text if research_text else f"Topic: {topic}, Niche: {niche}"
-    system = (
-        "You are a world-class viral short-form video strategist who has helped 500+ creators hit 10M+ views. "
-        "Deep expertise in Instagram Reels, YouTube Shorts, TikTok virality. "
-        "You ONLY return valid JSON arrays with no extra text."
-    )
-    prompt = f"""Extract 3 Knowledge Nuggets for a viral video about: "{topic}"
-Niche: {niche or "General"}
-LANGUAGE: {lang_instruction}
+  <phase_boundary_check>
+  Before generating ANY content, execute this checklist:
+  □ I am executing ONLY Phase {phase_number}
+  □ Previous phase data is READ-ONLY historical context
+  □ I will NOT regenerate, modify, or loop back to previous phases
+  □ I will NOT output content belonging to other phases
+  □ My output advances the narrative FORWARD from where Phase {phase_number - 1} ended
+  </phase_boundary_check>
 
-Research/Context:
-{context[:3000]}
+  ═══════════════════════════════════════════════════════════════════════════════
+                           PHASE DEFINITIONS (Reference Only)
+  ═══════════════════════════════════════════════════════════════════════════════
 
-QUALITY BAR — each nugget must be:
-1. SPECIFIC to "{topic}" with real numbers — NO generic filler
-2. Emotionally triggering: surprise, FOMO, or burning curiosity
-3. Platform-native: sounds like a viral Reel, not Wikipedia
-4. Written in the specified language with cultural context
+  PHASE 1 - TOPIC EXTRACTION: Generate 3 knowledge nuggets. User selects ONE.
+  PHASE 2 - HOOK ENGINEERING: Craft the opening 0.8-second thumb-stop moment.
+  PHASE 3 - STRUCTURAL OUTLINE: Build the 5-beat retention architecture.
+  PHASE 4 - FULL SCRIPT: Write scene-by-scene production-ready dialogue.
+  PHASE 5 - DELIVERY DIRECTION: Actor cues, pacing, emotional beats.
 
-Return ONLY a JSON array of exactly 3 objects, each with:
-- "type": "Shocking Fact" | "Practical Hack" | "Story Hook"
-- "text": max 15 words, punchy, specific, with numbers where possible
-- "source": credible source (e.g. "Journal of Dermatology 2024")
-- "rationale": psychological reason this works (1 sentence)
-- "color": "#EF4444" for Shocking Fact | "#22C55E" for Practical Hack | "#F59E0B" for Story Hook
+  You execute ONLY the phase number specified. Other phases are locked.
 
-Return ONLY the JSON array."""
-    raw = _ask(prompt, system=system)
-    if not raw:
-        return _nugget_fallback(topic, niche)
-    parsed = _parse_json(raw)
-    if isinstance(parsed, list) and len(parsed) >= 3:
-        color_map = {"Shocking Fact": "#EF4444", "Practical Hack": "#22C55E", "Story Hook": "#F59E0B"}
-        for n in parsed:
-            n["color"] = color_map.get(n.get("type", ""), "#6366F1")
-        return parsed[:3]
-    return _nugget_fallback(topic, niche)
+  ═══════════════════════════════════════════════════════════════════════════════
+                           CONTENT GENERATION RULES
+  ═══════════════════════════════════════════════════════════════════════════════
 
-def enhance_hook_validation(hook_text: str, base_result: dict) -> dict:
-    if base_result.get("valid"):
-        return base_result
-    prompt = f"""Viral video hook expert. Analyse and improve this hook.
-HOOK: "{hook_text}"
-ISSUES: {', '.join(base_result.get('issues', []))}
-Return ONLY JSON: {{"rewrite_primary": "improved hook under 15 words with a specific number", "rewrite_alternative": "different angle rewrite under 15 words", "why_it_works": "one sentence on the psychology"}}"""
-    raw = _ask(prompt)
-    if raw:
-        parsed = _parse_json(raw)
-        if isinstance(parsed, dict):
-            base_result["ai_rewrites"] = parsed
-    return base_result
+  <narrative_arc_progression>
+  Verify before writing:
+  1. What specific content did Phase {phase_number - 1} produce?
+  2. What NEW element does Phase {phase_number} add that didn't exist?
+  3. Does my output build ON TOP of previous work, not replace it?
+  4. Am I generating fresh creative material, not summarizing inputs?
+  </narrative_arc_progression>
 
-# ── PHASE 3: Screenplay Generation ─────────────────────────────────────────
+  WRITING MANDATES:
+  - Dialogue sounds like a friend texting an urgent secret at 2AM
+  - Zero corporate speak: ban "game-changer", "revolutionary", "unlock your potential"
+  - Every sentence earns its existence or gets cut
+  - Numbers and specifics over vague claims ("47% faster" not "much faster")
+  - Conflict, tension, or curiosity in every beat
+  - Write for a 14-second attention span viewer
 
-def generate_screenplay_ai(phase1: dict, phase2: dict) -> Optional[list[dict]]:
-    topic = phase1.get("topic", phase1.get("hook_text", "the topic"))
-    hook = phase1.get("hook_text", "")
-    niche = phase1.get("niche", "")
-    platform = phase1.get("platform", "Instagram")
-    content_style = phase1.get("content_style", "Demonstration")
-    structure = phase2.get("selected_structure", "Step-by-Step")
-    fmt = phase2.get("selected_format", "Talking Head")
-    language = phase1.get("language", "EN")
-    actor_name = phase1.get("on_camera_actor", "the creator")
-    actor_brief = phase1.get("actor_brief", "")
-    content_creator = phase1.get("content_creator", "")
-    brand = phase1.get("brand_company", "")
-    estimated_length = phase1.get("estimated_length", "30-60s")
-    aspect_ratio = phase1.get("aspect_ratio", "9:16")
-    lang_instruction = LANGUAGE_INSTRUCTIONS.get(language, LANGUAGE_INSTRUCTIONS["EN"])
-    nuggets = phase1.get("knowledge_nuggets", [])
-    nugget_text = "\n".join([f"- [{n.get('type','Fact')}] {n.get('text','')}" for n in nuggets]) if nuggets else f"Key insight about {topic}"
-    actor_context = ""
-    if actor_name and actor_name != "the creator":
-        actor_context += f"\nACTOR: {actor_name}"
-    if actor_brief:
-        actor_context += f"\nACTOR BRIEF: {actor_brief}"
-    if content_creator:
-        actor_context += f"\nCONTENT CREATOR: {content_creator}"
-    if brand:
-        actor_context += f"\nBRAND: {brand}"
-    system = (
-        "You are a neuroscience-trained viral video director who has generated 500M+ cumulative views across "
-        "Instagram Reels, TikTok, and YouTube Shorts. You understand dopamine loop scripting, pattern interrupts, "
-        "cognitive open loops, and the 1.7-second attention threshold on mobile feeds.\n\n"
-        "YOUR CORE BELIEFS:\n"
-        "- The first 0.8 seconds decide if the thumb stops scrolling. No warmup. No buildup. Mid-action ONLY.\n"
-        "- Every 2-second window needs a NEW visual stimulus or the viewer leaves.\n"
-        "- Dialogue must sound like a friend texting you an urgent secret, NOT a script being read.\n"
-        "- Action parentheticals are the REAL screenplay — actors need exact body language, prop handling, "
-        "eye direction, facial micro-expressions, and blocking down to the centimeter.\n"
-        "- Audio design is 50% of retention — every scene needs specific SFX, music energy level (%), and silence beats.\n"
-        "- The CTA must create FOMO — 'save before this gets taken down' beats 'follow for more' every time.\n\n"
-        "PSYCHOLOGICAL RETENTION TRICKS YOU ALWAYS USE:\n"
-        "1. 3-SECOND PATTERN INTERRUPT: Scene 1 opens with a jarring visual or statement that breaks the scroll pattern.\n"
-        "2. NARRATIVE OPEN LOOPS: Tease a payoff in Scene 1 that only resolves in Scene 4-5. Viewer can't leave.\n"
-        "3. DOPAMINE MICRO-HITS: Every scene delivers a small 'aha' or emotional spike. No dead air. No filler.\n"
-        "4. AUTHORITY-VULNERABILITY TOGGLE: Mix confident expertise with personal admission to build trust.\n"
-        "5. VISUAL PACING ESCALATION: Cut frequency increases toward the climax. Slow → Medium → Rapid-fire.\n"
-        "6. SILENCE AS A WEAPON: 0.5-1s silence before the biggest reveal. Contrast creates impact.\n"
-        "7. SPECIFIC NUMBERS: '73%' beats 'most'. '$47' beats 'affordable'. '14 days' beats 'quickly'.\n"
-        "8. EMOTIONALLY RESONANT ENDINGS: Final line should be quotable, shareable, and make the viewer feel something.\n\n"
-        "ANTI-PATTERNS YOU NEVER DO:\n"
-        "- Never start with 'Hey guys', 'So today', 'Welcome back', or any greeting.\n"
-        "- Never use generic filler: 'game-changer', 'mind-blowing', 'you won't believe'.\n"
-        "- Never write action as just '(Actor talks to camera)' — that's lazy. Specify EVERYTHING.\n"
-        "- Never have two consecutive scenes at the same energy level.\n"
-        "- Never let dialogue exceed 15 words per scene without a visual interrupt.\n\n"
-        "Return ONLY valid JSON arrays. No markdown. No commentary."
-    )
-    prompt = f"""Write a dopamine-optimized viral video screenplay for {platform} about "{topic}".
+  ═══════════════════════════════════════════════════════════════════════════════
+                           MANDATORY OUTPUT FORMAT
+  ═══════════════════════════════════════════════════════════════════════════════
 
-═══ VIDEO BRIEF ═══
-Topic: {topic}
-Hook line: "{hook or topic}"
-Niche: {niche}
-Content Style: {content_style}
-Structure template: {structure}
-Format: {fmt}
-Platform: {platform} ({aspect_ratio}, target ~{estimated_length})
-LANGUAGE: {lang_instruction}{actor_context}
-Knowledge Nuggets (weave ALL into the script):
-{nugget_text}
+  Structure your Phase {phase_number} output using EXACTLY these tags:
 
-═══ SCENE-BY-SCENE REQUIREMENTS ═══
+  <scene_setting>
+  [VISUAL FRAME]: Describe exactly what the camera sees - shot type, framing, movement
+  [TEXT OVERLAY]: Any on-screen text, font style, animation timing
+  [PACING]: Speed of cuts, visual rhythm, transition style
+  [DURATION]: Precise timing in seconds for this beat
+  </scene_setting>
 
-SCENE 1 — "THE HOOK" (0.0s–3.0s)
-- Use EXACTLY this line as dialogue: "{hook or topic}"
-- Opens MID-ACTION. {actor_name} is already doing something when the video starts.
-- Camera: extreme close-up, slightly low angle, handheld micro-shake for energy.
-- First visual text overlay appears at 0.3s — big, bold, contrasting color.
-- Audio: voice at 0.0s, NO music for first 1.5s (voice-only creates intimacy), beat drop at 2.5s.
-- THIS SCENE MUST CREATE AN OPEN LOOP the viewer can only close by watching to Scene 4-5.
-- Energy: 10/10. Pace: rapid-fire.
+  <actor_delivery>
+  [TONE]: Emotional register (conspiratorial whisper, excited friend, deadpan expert)
+  [SUBTEXT]: What the actor is FEELING beneath the words
+  [PAUSE CUES]: Exact moments of silence and their duration
+  [PHYSICAL]: Micro-expressions, hand gestures, eye contact with camera
+  </actor_delivery>
 
-SCENE 2 — "THE TENSION" (3.0s–8.0s)
-- Establish the problem/gap/conflict that makes the viewer NEED the answer.
-- Use the "authority + vulnerability" toggle — show expertise but admit a personal mistake.
-- Camera switches to medium shot — pattern interrupt from Scene 1's close-up.
-- Insert a B-cam product/prop close-up at the 5s mark.
-- Energy deliberately drops to 7/10 to create contrast for Scene 3.
+  <dialogue>
+  [Write the exact spoken words here. Punchy. Conversational. Real human speech patterns. Include verbal fillers and natural rhythm. No AI clichés. No corporate polish.]
+  </dialogue>
 
-SCENE 3 — "THE PAYLOAD" (8.0s–18.0s)
-- THIS IS THE VALUE BOMB. Deliver the core nugget with maximum specificity.
-- Use the most compelling Knowledge Nugget here with exact numbers.
-- Camera: push-in dolly, getting physically closer as the value increases.
-- Text overlays: key stat appears at the exact moment it's spoken.
-- Actor demonstrates (not just says) — if it's a product, SHOW the technique.
-- Energy builds from 7 to 9/10.
+  ═══════════════════════════════════════════════════════════════════════════════
+                           ANTI-LOOP ENFORCEMENT
+  ═══════════════════════════════════════════════════════════════════════════════
 
-SCENE 4 — "THE PROOF" (18.0s–25.0s)
-- Close the open loop from Scene 1. Pay off the promise.
-- Show real/specific results: "I did X for Y days and got Z result."
-- Camera: dolly in to product/result close-up.
-- Single peak SFX moment (cash register / success chime) — ONE per video, it goes here.
-- Energy: 8/10, pace medium — let the proof breathe.
+  FORBIDDEN ACTIONS:
+  ✗ Regenerating nuggets if Phase 1 is complete
+  ✗ Rewriting hooks if Phase 2 is complete
+  ✗ Restructuring outline if Phase 3 is complete
+  ✗ Outputting content for phases other than {phase_number}
+  ✗ Summarizing or restating previous phase outputs as new content
+  ✗ Using placeholder text like "[insert X here]"
 
-SCENE 5 — "THE FOMO CTA" (25.0s–30.0s)
-- 1.0s SILENCE/FREEZE before the CTA begins (this is a deliberate technique).
-- CTA must use urgency + specificity: "Save this before [specific consequence]" or "Follow — I'm dropping [specific next topic] tomorrow."
-- Camera: static close-up, direct eye contact.
-- "SAVE THIS" pulsing text overlay with arrow pointing to save button.
-- Music fades out over final 2s. End on a beat, not a fade.
-- Energy: 9/10, pace urgent.
-
-═══ OUTPUT FORMAT ═══
-Return ONLY a JSON array of exactly 5 scene objects. Each object:
-- "sceneNum": int 1-5
-- "name": scene name in CAPS
-- "timingStart": float seconds
-- "timingEnd": float seconds
-- "duration": float seconds
-- "dialogue": EXACT words {actor_name} says — punchy, conversational, specific numbers, zero filler. Written in {language}.
-- "action": "(Actor {actor_name}: [PRECISE physical blocking — hand position, eye direction, prop handling, facial micro-expression, body angle, movement trajectory])"
-- "camera": {{"shot": "Close-up/Medium/Wide/etc", "angle": "Low/Eye/High/Dutch", "movement": "Push-in/Static/Dolly/Handheld/etc"}}
-- "actor": {{"expression": "specific emotion + physical descriptor", "energy": 1-10, "pace": "fast/medium/slow"}}
-- "visual": exact text overlay content, font size, color, animation type, and timestamp
-- "audio": music energy level as %, specific SFX names with exact timestamps, silence beats
-- "editMarkers": [{{"time": "Xs", "event": "specific edit action"}}] — 3-4 per scene
-
-Return ONLY the JSON array. No markdown fences. No commentary."""
-    raw = _ask(prompt, system=system)
-    if not raw:
-        return None
-    parsed = _parse_json(raw)
-    if isinstance(parsed, list) and len(parsed) >= 5:
-        return parsed
-    return None
-
-# ── PHASE 3: Single Scene Regeneration ─────────────────────────────────────
-
-def regenerate_scene_ai(scene: dict, phase1: dict, phase2: dict, direction: str = "") -> Optional[dict]:
-    topic = phase1.get("topic", "the topic")
-    language = phase1.get("language", "EN")
-    lang_instruction = LANGUAGE_INSTRUCTIONS.get(language, LANGUAGE_INSTRUCTIONS["EN"])
-    actor_name = phase1.get("on_camera_actor", "the creator")
-    actor_brief = phase1.get("actor_brief", "")
-    prompt = f"""Viral video director. Rewrite this scene for a video about "{topic}".
-Language: {lang_instruction}
-Actor: {actor_name}{(' - ' + actor_brief) if actor_brief else ''}
-
-CURRENT SCENE:
-{json.dumps(scene, indent=2)}
-
-DIRECTOR NOTE: {direction or 'Make dialogue more specific, punchy, and emotionally charged. Improve actor blocking to be immediately executable.'}
-
-Return ONLY a JSON object — identical structure, same sceneNum/name/timingStart/timingEnd.
-Improve: dialogue (more specific/punchy in correct language), action (precise blocking), visual, audio."""
-    raw = _ask(prompt)
-    if raw:
-        parsed = _parse_json(raw)
-        if isinstance(parsed, dict) and "sceneNum" in parsed:
-            return parsed
-    return None
-
-# ── PHASE 4: Quality Fix Suggestions ───────────────────────────────────────
-
-def get_fix_suggestions_ai(failed_checks: list[dict], scenes: list[dict], topic: str) -> dict:
-    if not failed_checks:
-        return {}
-    checks_summary = "\n".join([
-        f"- {c['id']} [{c['severity']}] {c['name']}: {c.get('evidence','')}"
-        for c in failed_checks[:8]
-    ])
-    prompt = f"""Video quality consultant reviewing a short-form video about "{topic}".
-FAILED CHECKS:
-{checks_summary}
-For each check ID, provide a specific 1-2 sentence fix specific to "{topic}".
-Return ONLY JSON: {{"CHECK_ID": "specific fix instruction"}}"""
-    raw = _ask(prompt)
-    if raw:
-        parsed = _parse_json(raw)
-        if isinstance(parsed, dict):
-            return parsed
-    return {}
-
-# ── PHASE 5: Production Summary ─────────────────────────────────────────────
-
-def generate_production_summary_ai(meta: dict, scenes: list[dict]) -> Optional[str]:
-    title = meta.get("title", "Video")
-    platform = meta.get("platform", "")
-    fmt = meta.get("format", "")
-    score = meta.get("score", 0)
-    scenes_summary = " -> ".join([s.get("name", "") for s in scenes[:6]])
-    prompt = f"""Write a 3-sentence executive production summary for this viral video brief.
-Title: {title}
-Platform: {platform}
-Format: {fmt}
-Structure: {scenes_summary}
-Quality Score: {score}/100
-Tone: confident senior creative director — specific, actionable, no fluff."""
-    return _ask(prompt)
+  BEGIN PHASE {phase_number} OUTPUT NOW:"""
 
 
-# ── PHASE 1: Dynamic Fluff Examples ────────────────────────────────────────
-
-def generate_fluff_examples(niche: str, topic: str = "") -> list[dict]:
-    """Generate niche-specific fluff vs specific examples for the Fluff Check table."""
-    system = (
-        "You are a viral content editor. You catch generic, low-performing copy and rewrite it into "
-        "specific, data-driven, scroll-stopping copy. You ONLY return valid JSON arrays."
-    )
-    prompt = f"""Generate 3 "Fluff vs Specific" example pairs for the niche: "{niche}"{f', topic: "{topic}"' if topic else ''}.
-
-Each pair shows a BAD generic line vs a GOOD specific rewrite.
-
-Rules for FLUFF (bad):
-- Vague, could apply to any topic
-- No numbers, no specifics
-- Sounds like ChatGPT wrote it
-
-Rules for SPECIFIC (good):
-- Contains a real number, percentage, dollar amount, or timeframe
-- Could ONLY be about this exact niche/topic
-- Sounds like an expert who tested this personally
-
-Return ONLY a JSON array of 3 objects:
-[
-  {{"fluff": "generic bad example in quotes", "specific": "specific good example in quotes"}},
-  ...
-]"""
-    raw = _ask(prompt, system=system, max_tokens=1024)
-    if raw:
-        parsed = _parse_json(raw)
-        if isinstance(parsed, list) and len(parsed) >= 3:
-            return parsed[:3]
-    n = niche.lower() if niche else "this topic"
-    return [
-        {"fluff": f'"This {n} tip is amazing"', "specific": f'"This {n} technique cut my costs by 43% in 2 weeks"'},
-        {"fluff": f'"You should try this {n} method"', "specific": f'"I tested 12 {n} methods — only this one actually worked"'},
-        {"fluff": f'"Everyone is talking about {n}"', "specific": f'"This {n} hack got 2.4M views because it saves $200/month"'},
-    ]
+  def _ask(prompt: str, system: str = "", max_tokens: int = 4096) -> Optional[str]:
+      client = _get_client()
+      if not client:
+          return None
+      try:
+          kwargs = {
+              "model": "claude-sonnet-4-6",
+              "max_tokens": max_tokens,
+              "messages": [{"role": "user", "content": prompt}],
+          }
+          if system:
+              kwargs["system"] = system
+          response = client.messages.create(**kwargs)
+          return response.content[0].text.strip()
+      except Exception as e:
+          print(f"Anthropic API error: {e}")
+          return None
 
 
-# ── PHASE 1: AI Topic Suggestions ─────────────────────────────────────────
+  def _parse_json(text: str):
+      text = re.sub(r"^```(?:json)?\s*", "", text.strip())
+      text = re.sub(r"\s*```$", "", text.strip())
+      return json.loads(text.strip())
 
-def suggest_topics(niche: str, sub_niche: str = "") -> list[dict]:
-    """Suggest viral-worthy topics for a niche."""
-    system = (
-        "You are a viral content strategist. You identify topics with the highest viral potential "
-        "based on search demand, controversy potential, and emotional triggers. "
-        "Return ONLY valid JSON arrays."
-    )
-    prompt = f"""Suggest 5 viral video topics for the niche: "{niche}"{f' > "{sub_niche}"' if sub_niche else ''}.
 
-Each topic must:
-1. Have high search demand (people actively searching for this)
-2. Challenge a common belief OR reveal a hidden truth
-3. Be demonstrable in under 60 seconds
-4. Have a natural hook built into the topic itself
+  def _nugget_fallback(topic: str, niche: str) -> list[dict]:
+      return [
+          {
+              "type": "Shocking Fact",
+              "text": f"Most people get {topic} completely wrong - here's the data",
+              "source": "Industry research",
+              "rationale": "Creates immediate curiosity gap",
+              "color": "#EF4444"
+          },
+          {
+              "type": "Practical Hack",
+              "text": f"The 2-minute {topic} trick that experts use daily",
+              "source": "Expert interviews",
+              "rationale": "Promises quick actionable value",
+              "color": "#22C55E"
+          },
+          {
+              "type": "Story Hook",
+              "text": f"I tested {topic} for 30 days - the results shocked me",
+              "source": "Personal experiment",
+              "rationale": "Personal narrative builds trust",
+              "color": "#F59E0B"
+          }
+      ]
 
-Return ONLY a JSON array of 5 objects:
-[
+
+  def extract_nuggets_ai(topic: str, research_text: str = "", niche: str = "", language: str = "EN") -> list[dict]:
+      """Phase 1: Extract 3 knowledge nuggets for user to choose from"""
+
+      client = _get_client()
+      if not client:
+          return _nugget_fallback(topic, niche)
+
+      lang_instruction = LANGUAGE_INSTRUCTIONS.get(language, LANGUAGE_INSTRUCTIONS["EN"])
+
+      system_prompt = f"""You are a world-class viral short-form video strategist who has helped 500+ creators hit 10M+ views on Instagram Reels, YouTube Shorts, and TikTok.
+
+  {lang_instruction}
+
+  Your task: Extract exactly 3 DIFFERENT knowledge nuggets from the given topic/research. Each nugget must be:
+  - Maximum 15 words
+  - Punchy and scroll-stopping
+  - Specific with numbers where possible
+  - Unique angle (no overlap between the 3)
+
+  CRITICAL: Generate exactly 3 nuggets of these types:
+  1. "Shocking Fact" - Counterintuitive data that makes people stop scrolling
+  2. "Practical Hack" - Actionable tip they can use immediately
+  3. "Story Hook" - Personal/emotional angle that builds connection
+
+  Return ONLY valid JSON array, no markdown:
+  [
+    {{"type": "Shocking Fact", "text": "...", "source": "...", "rationale": "why this hooks viewers", "color": "#EF4444"}},
+    {{"type": "Practical Hack", "text": "...", "source": "...", "rationale": "why this hooks viewers", "color": "#22C55E"}},
+    {{"type": "Story Hook", "text": "...", "source": "...", "rationale": "why this hooks viewers", "color": "#F59E0B"}}
+  ]"""
+
+      prompt = f"""Topic: {topic}
+  Niche: {niche or 'General'}
+  Research Context: {research_text or 'No additional research provided'}
+
+  Generate 3 unique knowledge nuggets for this viral video. Return ONLY the JSON array."""
+
+      result = _ask(prompt, system_prompt)
+      if not result:
+          return _nugget_fallback(topic, niche)
+
+      try:
+          nuggets = _parse_json(result)
+          if isinstance(nuggets, list) and len(nuggets) >= 3:
+              return nuggets[:3]
+          return _nugget_fallback(topic, niche)
+      except:
+          return _nugget_fallback(topic, niche)
+
+
+  def enhance_hook_validation(hook: str, topic: str, niche: str = "", language: str = "EN") -> dict:
+      """Enhance and validate a hook using AI"""
+
+      client = _get_client()
+      if not client:
+          return {"enhanced_hook": hook, "suggestions": [], "score": 70}
+
+      lang_instruction = LANGUAGE_INSTRUCTIONS.get(language, LANGUAGE_INSTRUCTIONS["EN"])
+
+      system_prompt = f"""You are a viral hook specialist. {lang_instruction}
+
+  Analyze the hook and return JSON:
+  {{"enhanced_hook": "improved version under 15 words", "suggestions": ["suggestion1", "suggestion2"], "score": 0-100, "issues": ["issue1"]}}"""
+
+      prompt = f"Hook: {hook}\nTopic: {topic}\nNiche: {niche}"
+
+      result = _ask(prompt, system_prompt, max_tokens=1024)
+      if not result:
+          return {"enhanced_hook": hook, "suggestions": [], "score": 70}
+
+      try:
+          return _parse_json(result)
+      except:
+          return {"enhanced_hook": hook, "suggestions": [], "score": 70}
+
+
+  def generate_screenplay_ai(phase1: dict, phase2: dict, language: str = "EN") -> dict:
+      """Phase 3: Generate screenplay using ONLY the selected nugget"""
+
+      client = _get_client()
+      if not client:
+          return _screenplay_fallback(phase1, phase2)
+
+      # FIXED: Use only the SELECTED nugget, not all nuggets
+      selected_nugget = phase1.get("selected_nugget", {})
+      if not selected_nugget:
+          # Fallback to first nugget if none selected (shouldn't happen)
+          nuggets = phase1.get("knowledge_nuggets", [])
+          selected_nugget = nuggets[0] if nuggets else {"type": "Fact", "text": phase1.get("topic", "")}
+
+      nugget_text = f"[{selected_nugget.get('type', 'Fact')}] {selected_nugget.get('text', '')}"
+
+      topic = phase1.get("topic", "")
+      platform = phase1.get("platform", "YouTube Shorts")
+      niche = phase1.get("niche", "")
+      hook = phase1.get("hook", "")
+
+      content_type = phase2.get("content_type", "educational")
+      format_style = phase2.get("format", "talking_head")
+
+      previous_data = {
+          "phase1": {
+              "topic": topic,
+              "selected_nugget": selected_nugget,
+              "hook": hook,
+              "platform": platform,
+              "niche": niche
+          },
+          "phase2": phase2
+      }
+
+      system_prompt = _get_phase_system_prompt(3, previous_data)
+
+      lang_instruction = LANGUAGE_INSTRUCTIONS.get(language, LANGUAGE_INSTRUCTIONS["EN"])
+
+      prompt = f"""{lang_instruction}
+
+  Generate a 5-scene viral video screenplay for:
+  - Platform: {platform}
+  - Topic: {topic}
+  - Selected Nugget (USE THIS AS CORE MESSAGE): {nugget_text}
+  - Opening Hook: {hook}
+  - Content Type: {content_type}
+  - Format: {format_style}
+
+  Create exactly 5 scenes. Each scene needs:
+  1. Scene number and title
+  2. Duration in seconds
+  3. <scene_setting> tag with visual details
+  4. <actor_delivery> tag with performance direction
+  5. <dialogue> tag with exact spoken words
+
+  Return as JSON:
   {{
-    "topic": "specific topic in 8 words or fewer",
-    "hook_angle": "the controversy or surprise angle in one sentence",
-    "viral_score": 1-10 (10 = guaranteed viral),
-    "why": "one sentence on why this will perform"
-  }}
-]"""
-    raw = _ask(prompt, system=system, max_tokens=1024)
-    if raw:
-        parsed = _parse_json(raw)
-        if isinstance(parsed, list) and len(parsed) >= 3:
-            return parsed[:5]
-    return []
+    "title": "video title",
+    "total_duration": seconds,
+    "scenes": [
+      {{
+        "scene_number": 1,
+        "title": "Hook",
+        "duration": 3,
+        "scene_setting": "...",
+        "actor_delivery": "...",
+        "dialogue": "..."
+      }}
+    ]
+  }}"""
+
+      result = _ask(prompt, system_prompt, max_tokens=4096)
+      if not result:
+          return _screenplay_fallback(phase1, phase2)
+
+      try:
+          return _parse_json(result)
+      except:
+          return _screenplay_fallback(phase1, phase2)
+
+
+  def _screenplay_fallback(phase1: dict, phase2: dict) -> dict:
+      topic = phase1.get("topic", "your topic")
+      hook = phase1.get("hook", "Wait, did you know this?")
+
+      return {
+          "title": f"The Truth About {topic}",
+          "total_duration": 45,
+          "scenes": [
+              {
+                  "scene_number": 1,
+                  "title": "Hook",
+                  "duration": 3,
+                  "scene_setting": "Close-up face shot, eye-level, slight camera push",
+                  "actor_delivery": "Conspiratorial whisper, leaning in, wide eyes",
+                  "dialogue": hook
+              },
+              {
+                  "scene_number": 2,
+                  "title": "Problem",
+                  "duration": 8,
+                  "scene_setting": "Medium shot, b-roll cuts of relevant imagery",
+                  "actor_delivery": "Frustrated energy, hand gestures emphasizing pain points",
+                  "dialogue": f"Here's the thing about {topic} that nobody talks about..."
+              },
+              {
+                  "scene_number": 3,
+                  "title": "Revelation",
+                  "duration": 12,
+                  "scene_setting": "Dynamic shot, text overlays appearing with key points",
+                  "actor_delivery": "Building excitement, faster pace, confident posture",
+                  "dialogue": "But I discovered something that changes everything..."
+              },
+              {
+                  "scene_number": 4,
+                  "title": "Proof",
+                  "duration": 15,
+                  "scene_setting": "Screen recordings, demonstrations, visual evidence",
+                  "actor_delivery": "Teacher mode, clear enunciation, pointing at visuals",
+                  "dialogue": "Look at this - the numbers don't lie..."
+              },
+              {
+                  "scene_number": 5,
+                  "title": "CTA",
+                  "duration": 7,
+                  "scene_setting": "Back to face, slight zoom out, warm lighting",
+                  "actor_delivery": "Friendly, inviting, direct eye contact",
+                  "dialogue": "Save this for later. And follow for part 2 where I show you exactly how to do this yourself."
+              }
+          ]
+      }
+
+
+  def regenerate_scene_ai(existing_scene: dict, phase1: dict, phase2: dict, direction: str, language: str = "EN") -> dict:
+      """Regenerate a single scene with director notes"""
+
+      client = _get_client()
+      if not client:
+          return existing_scene
+
+      selected_nugget = phase1.get("selected_nugget", {})
+
+      previous_data = {
+          "phase1": {"topic": phase1.get("topic"), "selected_nugget": selected_nugget},
+          "phase2": phase2,
+          "existing_scene": existing_scene
+      }
+
+      system_prompt = _get_phase_system_prompt(4, previous_data)
+      lang_instruction = LANGUAGE_INSTRUCTIONS.get(language, LANGUAGE_INSTRUCTIONS["EN"])
+
+      prompt = f"""{lang_instruction}
+
+  Rewrite this scene based on director feedback:
+
+  CURRENT SCENE:
+  {json.dumps(existing_scene, indent=2)}
+
+  DIRECTOR NOTES: {direction}
+
+  Keep the same scene_number and approximate duration. Return JSON with same structure but improved content."""
+
+      result = _ask(prompt, system_prompt, max_tokens=2048)
+      if not result:
+          return existing_scene
+
+      try:
+          return _parse_json(result)
+      except:
+          return existing_scene
+
+
+  def analyze_quality_ai(screenplay: dict, phase1: dict, language: str = "EN") -> dict:
+      """Phase 4: Quality analysis and scoring"""
+
+      client = _get_client()
+      if not client:
+          return {"score": 75, "verdict": "pass", "issues": [], "suggestions": []}
+
+      previous_data = {
+          "phase1": phase1,
+          "screenplay": screenplay
+      }
+
+      system_prompt = _get_phase_system_prompt(4, previous_data)
+      lang_instruction = LANGUAGE_INSTRUCTIONS.get(language, LANGUAGE_INSTRUCTIONS["EN"])
+
+      prompt = f"""{lang_instruction}
+
+  Analyze this screenplay for viral potential:
+
+  {json.dumps(screenplay, indent=2)}
+
+  Score 0-100 on:
+  - Hook strength (first 3 seconds)
+  - Retention architecture (keeps viewers watching)
+  - Dialogue authenticity (sounds human, not AI)
+  - Visual storytelling
+  - CTA effectiveness
+
+  Return JSON:
+  {{
+    "score": 0-100,
+    "verdict": "pass" or "needs_work",
+    "breakdown": {{"hook": score, "retention": score, "dialogue": score, "visuals": score, "cta": score}},
+    "issues": ["critical issues"],
+    "suggestions": ["improvement suggestions"]
+  }}"""
+
+      result = _ask(prompt, system_prompt, max_tokens=2048)
+      if not result:
+          return {"score": 75, "verdict": "pass", "issues": [], "suggestions": []}
+
+      try:
+          return _parse_json(result)
+      except:
+          return {"score": 75, "verdict": "pass", "issues": [], "suggestions": []}
+
+
+  def generate_production_summary_ai(phase1: dict, phase2: dict, phase3: dict, phase4: dict, language: str = "EN") -> dict:
+      """Phase 5: Generate production documentation"""
+
+      client = _get_client()
+      if not client:
+          return _production_fallback(phase1, phase3)
+
+      previous_data = {
+          "phase1": phase1,
+          "phase2": phase2,
+          "phase3": phase3,
+          "phase4": phase4
+      }
+
+      system_prompt = _get_phase_system_prompt(5, previous_data)
+      lang_instruction = LANGUAGE_INSTRUCTIONS.get(language, LANGUAGE_INSTRUCTIONS["EN"])
+
+      prompt = f"""{lang_instruction}
+
+  Create a production brief for the video team:
+
+  {json.dumps(previous_data, indent=2)}
+
+  Return JSON:
+  {{
+    "title": "final video title",
+    "duration": "XX seconds",
+    "platform": "platform name",
+    "equipment_needed": ["list of gear"],
+    "location_notes": "shooting location suggestions",
+    "wardrobe": "clothing recommendations",
+    "props": ["props needed"],
+    "post_production": {{
+      "editing_style": "description",
+      "music_mood": "description",
+      "text_overlays": ["key text to add"],
+      "transitions": "transition style"
+    }},
+    "talent_notes": "direction for the actor/creator"
+  }}"""
+
+      result = _ask(prompt, system_prompt, max_tokens=2048)
+      if not result:
+          return _production_fallback(phase1, phase3)
+
+      try:
+          return _parse_json(result)
+      except:
+          return _production_fallback(phase1, phase3)
+
+
+  def _production_fallback(phase1: dict, phase3: dict) -> dict:
+      return {
+          "title": phase3.get("title", f"Video about {phase1.get('topic', 'topic')}"),
+          "duration": f"{phase3.get('total_duration', 45)} seconds",
+          "platform": phase1.get("platform", "YouTube Shorts"),
+          "equipment_needed": ["Smartphone with good camera", "Ring light", "Lapel mic"],
+          "location_notes": "Clean, uncluttered background with good lighting",
+          "wardrobe": "Casual but put-together, solid colors work best",
+          "props": [],
+          "post_production": {
+              "editing_style": "Fast cuts, high energy",
+              "music_mood": "Upbeat, trending audio",
+              "text_overlays": ["Key stats", "CTA"],
+              "transitions": "Quick cuts, occasional zoom"
+          },
+          "talent_notes": "Energy high from first frame. Talk TO the viewer, not AT them."
+      }
