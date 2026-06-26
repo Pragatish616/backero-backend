@@ -327,7 +327,7 @@ def generate_screenplay_ai(phase1: dict, phase2: dict, language: str = "EN") -> 
     topic = phase1.get("topic", "")
     platform = phase1.get("platform", "YouTube Shorts")
     niche = phase1.get("niche", "")
-    hook = phase1.get("hook", "")
+    hook = phase1.get("hook_text", phase1.get("hook", ""))
 
     content_type = phase2.get("content_type", "educational")
     format_style = phase2.get("format", "talking_head")
@@ -405,7 +405,7 @@ Return as JSON:
 def _screenplay_fallback(phase1: dict, phase2: dict) -> dict:
     """Fallback screenplay when API fails"""
     topic = phase1.get("topic", "your topic")
-    hook = phase1.get("hook", "Wait, did you know this?")
+    hook = phase1.get("hook_text", phase1.get("hook", "Wait, did you know this?"))
     selected_nugget = phase1.get("selected_nugget", {})
     nugget_text = selected_nugget.get("text", f"the truth about {topic}")
 
