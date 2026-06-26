@@ -318,3 +318,77 @@ Structure: {scenes_summary}
 Quality Score: {score}/100
 Tone: confident senior creative director — specific, actionable, no fluff."""
     return _ask(prompt)
+
+
+# ── PHASE 1: Dynamic Fluff Examples ────────────────────────────────────────
+
+def generate_fluff_examples(niche: str, topic: str = "") -> list[dict]:
+    """Generate niche-specific fluff vs specific examples for the Fluff Check table."""
+    system = (
+        "You are a viral content editor. You catch generic, low-performing copy and rewrite it into "
+        "specific, data-driven, scroll-stopping copy. You ONLY return valid JSON arrays."
+    )
+    prompt = f"""Generate 3 "Fluff vs Specific" example pairs for the niche: "{niche}"{f', topic: "{topic}"' if topic else ''}.
+
+Each pair shows a BAD generic line vs a GOOD specific rewrite.
+
+Rules for FLUFF (bad):
+- Vague, could apply to any topic
+- No numbers, no specifics
+- Sounds like ChatGPT wrote it
+
+Rules for SPECIFIC (good):
+- Contains a real number, percentage, dollar amount, or timeframe
+- Could ONLY be about this exact niche/topic
+- Sounds like an expert who tested this personally
+
+Return ONLY a JSON array of 3 objects:
+[
+  {{"fluff": "generic bad example in quotes", "specific": "specific good example in quotes"}},
+  ...
+]"""
+    raw = _ask(prompt, system=system, max_tokens=1024)
+    if raw:
+        parsed = _parse_json(raw)
+        if isinstance(parsed, list) and len(parsed) >= 3:
+            return parsed[:3]
+    n = niche.lower() if niche else "this topic"
+    return [
+        {"fluff": f'"This {n} tip is amazing"', "specific": f'"This {n} technique cut my costs by 43% in 2 weeks"'},
+        {"fluff": f'"You should try this {n} method"', "specific": f'"I tested 12 {n} methods — only this one actually worked"'},
+        {"fluff": f'"Everyone is talking about {n}"', "specific": f'"This {n} hack got 2.4M views because it saves $200/month"'},
+    ]
+
+
+# ── PHASE 1: AI Topic Suggestions ─────────────────────────────────────────
+
+def suggest_topics(niche: str, sub_niche: str = "") -> list[dict]:
+    """Suggest viral-worthy topics for a niche."""
+    system = (
+        "You are a viral content strategist. You identify topics with the highest viral potential "
+        "based on search demand, controversy potential, and emotional triggers. "
+        "Return ONLY valid JSON arrays."
+    )
+    prompt = f"""Suggest 5 viral video topics for the niche: "{niche}"{f' > "{sub_niche}"' if sub_niche else ''}.
+
+Each topic must:
+1. Have high search demand (people actively searching for this)
+2. Challenge a common belief OR reveal a hidden truth
+3. Be demonstrable in under 60 seconds
+4. Have a natural hook built into the topic itself
+
+Return ONLY a JSON array of 5 objects:
+[
+  {{
+    "topic": "specific topic in 8 words or fewer",
+    "hook_angle": "the controversy or surprise angle in one sentence",
+    "viral_score": 1-10 (10 = guaranteed viral),
+    "why": "one sentence on why this will perform"
+  }}
+]"""
+    raw = _ask(prompt, system=system, max_tokens=1024)
+    if raw:
+        parsed = _parse_json(raw)
+        if isinstance(parsed, list) and len(parsed) >= 3:
+            return parsed[:5]
+    return []
