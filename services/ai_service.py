@@ -148,52 +148,105 @@ def generate_screenplay_ai(phase1: dict, phase2: dict) -> Optional[list[dict]]:
     if brand:
         actor_context += f"\nBRAND: {brand}"
     system = (
-        "You are a top-tier viral video director who has produced content for 100M+ view creators. "
-        "You write hyper-specific, emotionally charged screenplays native to the platform. "
-        "Your scripts hook in under 2 seconds, use precise actor blocking, and never use generic filler. "
-        "Every word earns its place. Return only valid JSON arrays."
+        "You are a neuroscience-trained viral video director who has generated 500M+ cumulative views across "
+        "Instagram Reels, TikTok, and YouTube Shorts. You understand dopamine loop scripting, pattern interrupts, "
+        "cognitive open loops, and the 1.7-second attention threshold on mobile feeds.\n\n"
+        "YOUR CORE BELIEFS:\n"
+        "- The first 0.8 seconds decide if the thumb stops scrolling. No warmup. No buildup. Mid-action ONLY.\n"
+        "- Every 2-second window needs a NEW visual stimulus or the viewer leaves.\n"
+        "- Dialogue must sound like a friend texting you an urgent secret, NOT a script being read.\n"
+        "- Action parentheticals are the REAL screenplay — actors need exact body language, prop handling, "
+        "eye direction, facial micro-expressions, and blocking down to the centimeter.\n"
+        "- Audio design is 50% of retention — every scene needs specific SFX, music energy level (%), and silence beats.\n"
+        "- The CTA must create FOMO — 'save before this gets taken down' beats 'follow for more' every time.\n\n"
+        "PSYCHOLOGICAL RETENTION TRICKS YOU ALWAYS USE:\n"
+        "1. 3-SECOND PATTERN INTERRUPT: Scene 1 opens with a jarring visual or statement that breaks the scroll pattern.\n"
+        "2. NARRATIVE OPEN LOOPS: Tease a payoff in Scene 1 that only resolves in Scene 4-5. Viewer can't leave.\n"
+        "3. DOPAMINE MICRO-HITS: Every scene delivers a small 'aha' or emotional spike. No dead air. No filler.\n"
+        "4. AUTHORITY-VULNERABILITY TOGGLE: Mix confident expertise with personal admission to build trust.\n"
+        "5. VISUAL PACING ESCALATION: Cut frequency increases toward the climax. Slow → Medium → Rapid-fire.\n"
+        "6. SILENCE AS A WEAPON: 0.5-1s silence before the biggest reveal. Contrast creates impact.\n"
+        "7. SPECIFIC NUMBERS: '73%' beats 'most'. '$47' beats 'affordable'. '14 days' beats 'quickly'.\n"
+        "8. EMOTIONALLY RESONANT ENDINGS: Final line should be quotable, shareable, and make the viewer feel something.\n\n"
+        "ANTI-PATTERNS YOU NEVER DO:\n"
+        "- Never start with 'Hey guys', 'So today', 'Welcome back', or any greeting.\n"
+        "- Never use generic filler: 'game-changer', 'mind-blowing', 'you won't believe'.\n"
+        "- Never write action as just '(Actor talks to camera)' — that's lazy. Specify EVERYTHING.\n"
+        "- Never have two consecutive scenes at the same energy level.\n"
+        "- Never let dialogue exceed 15 words per scene without a visual interrupt.\n\n"
+        "Return ONLY valid JSON arrays. No markdown. No commentary."
     )
-    prompt = f"""Write a professional viral video screenplay for a {platform} video about "{topic}".
+    prompt = f"""Write a dopamine-optimized viral video screenplay for {platform} about "{topic}".
 
-VIDEO BRIEF:
-- Topic: {topic}
-- Hook: {hook or topic}
-- Niche: {niche}
-- Content Style: {content_style}
-- Structure: {structure}
-- Format: {fmt}
-- Platform: {platform} ({aspect_ratio}, ~{estimated_length})
-- LANGUAGE: {lang_instruction}{actor_context}
-- Knowledge Nuggets to weave in:
+═══ VIDEO BRIEF ═══
+Topic: {topic}
+Hook line: "{hook or topic}"
+Niche: {niche}
+Content Style: {content_style}
+Structure template: {structure}
+Format: {fmt}
+Platform: {platform} ({aspect_ratio}, target ~{estimated_length})
+LANGUAGE: {lang_instruction}{actor_context}
+Knowledge Nuggets (weave ALL into the script):
 {nugget_text}
 
-Generate exactly 5 scenes. NON-NEGOTIABLE rules:
+═══ SCENE-BY-SCENE REQUIREMENTS ═══
 
-Scene 1 (THE HOOK, 0-3 sec): Use EXACTLY: "{hook or topic}"
-- Opens mid-action, energy at 10/10
-- First word creates pattern interrupt (NOT "Hey", "So", "Welcome")
-- Creates open loop viewer MUST close by watching
+SCENE 1 — "THE HOOK" (0.0s–3.0s)
+- Use EXACTLY this line as dialogue: "{hook or topic}"
+- Opens MID-ACTION. {actor_name} is already doing something when the video starts.
+- Camera: extreme close-up, slightly low angle, handheld micro-shake for energy.
+- First visual text overlay appears at 0.3s — big, bold, contrasting color.
+- Audio: voice at 0.0s, NO music for first 1.5s (voice-only creates intimacy), beat drop at 2.5s.
+- THIS SCENE MUST CREATE AN OPEN LOOP the viewer can only close by watching to Scene 4-5.
+- Energy: 10/10. Pace: rapid-fire.
 
-Scenes 2-5: Follow the "{structure}" beats.
-- Each scene delivers value the previous did not
-- Dialogue is conversational, not scripted-sounding
-- Scene 5 CTA is specific to {niche.lower() or 'this topic'}
+SCENE 2 — "THE TENSION" (3.0s–8.0s)
+- Establish the problem/gap/conflict that makes the viewer NEED the answer.
+- Use the "authority + vulnerability" toggle — show expertise but admit a personal mistake.
+- Camera switches to medium shot — pattern interrupt from Scene 1's close-up.
+- Insert a B-cam product/prop close-up at the 5s mark.
+- Energy deliberately drops to 7/10 to create contrast for Scene 3.
 
-Return ONLY a JSON array of exactly 5 scene objects, each with:
+SCENE 3 — "THE PAYLOAD" (8.0s–18.0s)
+- THIS IS THE VALUE BOMB. Deliver the core nugget with maximum specificity.
+- Use the most compelling Knowledge Nugget here with exact numbers.
+- Camera: push-in dolly, getting physically closer as the value increases.
+- Text overlays: key stat appears at the exact moment it's spoken.
+- Actor demonstrates (not just says) — if it's a product, SHOW the technique.
+- Energy builds from 7 to 9/10.
+
+SCENE 4 — "THE PROOF" (18.0s–25.0s)
+- Close the open loop from Scene 1. Pay off the promise.
+- Show real/specific results: "I did X for Y days and got Z result."
+- Camera: dolly in to product/result close-up.
+- Single peak SFX moment (cash register / success chime) — ONE per video, it goes here.
+- Energy: 8/10, pace medium — let the proof breathe.
+
+SCENE 5 — "THE FOMO CTA" (25.0s–30.0s)
+- 1.0s SILENCE/FREEZE before the CTA begins (this is a deliberate technique).
+- CTA must use urgency + specificity: "Save this before [specific consequence]" or "Follow — I'm dropping [specific next topic] tomorrow."
+- Camera: static close-up, direct eye contact.
+- "SAVE THIS" pulsing text overlay with arrow pointing to save button.
+- Music fades out over final 2s. End on a beat, not a fade.
+- Energy: 9/10, pace urgent.
+
+═══ OUTPUT FORMAT ═══
+Return ONLY a JSON array of exactly 5 scene objects. Each object:
 - "sceneNum": int 1-5
-- "name": scene name in CAPS (Scene 1 is always "THE HOOK")
+- "name": scene name in CAPS
 - "timingStart": float seconds
-- "timingEnd": float seconds (total 28-35 sec)
+- "timingEnd": float seconds
 - "duration": float seconds
-- "dialogue": EXACT words {actor_name} says in {language} — specific, punchy, zero filler
-- "action": "(Actor {actor_name}: [precise physical blocking])"
-- "camera": {{"shot": "...", "angle": "...", "movement": "..."}}
-- "actor": {{"expression": "...", "energy": 1-10, "pace": "fast/medium/slow"}}
-- "visual": text overlay direction with timing and placement
-- "audio": music + SFX with exact timing cues
-- "editMarkers": [{{"time": "Xs", "event": "edit action"}}] x2-3
+- "dialogue": EXACT words {actor_name} says — punchy, conversational, specific numbers, zero filler. Written in {language}.
+- "action": "(Actor {actor_name}: [PRECISE physical blocking — hand position, eye direction, prop handling, facial micro-expression, body angle, movement trajectory])"
+- "camera": {{"shot": "Close-up/Medium/Wide/etc", "angle": "Low/Eye/High/Dutch", "movement": "Push-in/Static/Dolly/Handheld/etc"}}
+- "actor": {{"expression": "specific emotion + physical descriptor", "energy": 1-10, "pace": "fast/medium/slow"}}
+- "visual": exact text overlay content, font size, color, animation type, and timestamp
+- "audio": music energy level as %, specific SFX names with exact timestamps, silence beats
+- "editMarkers": [{{"time": "Xs", "event": "specific edit action"}}] — 3-4 per scene
 
-Return ONLY the JSON array."""
+Return ONLY the JSON array. No markdown fences. No commentary."""
     raw = _ask(prompt, system=system)
     if not raw:
         return None
