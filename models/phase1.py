@@ -42,6 +42,7 @@ class Phase1CreateRequest(BaseModel):
     number_of_actors: Optional[int] = None
     aspect_ratio: Optional[str] = None
     estimated_length: Optional[str] = None
+    sample_hook: Optional[str] = None
 
 
 class HookValidationRequest(BaseModel):
