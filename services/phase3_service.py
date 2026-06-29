@@ -245,11 +245,19 @@ def generate_screenplay(supabase, brief_id: str) -> dict:
         phase1["selected_nugget"] = nuggets[0]
 
     # ── Read user-selected duration ───────────────────────────────
-    # Frontend saves as "60s", "30s", etc. — strip the 's' suffix safely
+    # Frontend saves as "60", "30", etc. Parse robustly for legacy
+    # values like "30-60s" (use the higher end) or "60s".
     estimated_length = phase1.get("estimated_length", "") or ""
     clean_length = estimated_length.replace("s", "").strip()
     try:
-        target_duration = int(clean_length) if clean_length else 30
+        # Handle range values like "30-60" by taking the higher end
+        if "-" in clean_length:
+            parts = clean_length.split("-")
+            target_duration = int(parts[-1].strip())
+        elif clean_length:
+            target_duration = int(clean_length)
+        else:
+            target_duration = 30
     except (ValueError, TypeError):
         target_duration = 30
 
