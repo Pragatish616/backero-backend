@@ -326,7 +326,7 @@ def generate_screenplay_ai(phase1: dict, phase2: dict, language: str = "EN",
     """
     client = _get_client()
     if not client:
-        return _screenplay_fallback(phase1, phase2)
+        return _screenplay_fallback(phase1, phase2, target_duration)
 
     # FIXED: Use only the SELECTED nugget, not all nuggets
     selected_nugget = phase1.get("selected_nugget", {})
@@ -416,33 +416,41 @@ Return as JSON:
 
     result = _ask(prompt, system_prompt, max_tokens=4096)
     if not result:
-        return _screenplay_fallback(phase1, phase2)
+        return _screenplay_fallback(phase1, phase2, duration)
 
     try:
         screenplay = _parse_json(result)
         # Validate we got 5 scenes
         if isinstance(screenplay.get("scenes"), list) and len(screenplay["scenes"]) >= 5:
             return screenplay
-        return _screenplay_fallback(phase1, phase2)
+        return _screenplay_fallback(phase1, phase2, duration)
     except:
-        return _screenplay_fallback(phase1, phase2)
+        return _screenplay_fallback(phase1, phase2, duration)
 
 
-def _screenplay_fallback(phase1: dict, phase2: dict) -> dict:
-    """Fallback screenplay when API fails"""
+def _screenplay_fallback(phase1: dict, phase2: dict, duration: int = 30) -> dict:
+    """Fallback screenplay when API fails — respects target duration"""
     topic = phase1.get("topic", "your topic")
-    hook = phase1.get("hook", "Wait, did you know this?")
+    hook = phase1.get("hook_text", "") or phase1.get("hook", "Wait, did you know this?")
     selected_nugget = phase1.get("selected_nugget", {})
     nugget_text = selected_nugget.get("text", f"the truth about {topic}")
 
+    # Scale beats proportionally
+    d = duration
+    hook_d = max(2, round(d * 0.1))
+    prob_d = round(d * 0.2)
+    rev_d = round(d * 0.28)
+    proof_d = round(d * 0.28)
+    cta_d = d - hook_d - prob_d - rev_d - proof_d
+
     return {
         "title": f"The Truth About {topic}",
-        "total_duration": 45,
+        "total_duration": d,
         "scenes": [
             {
                 "scene_number": 1,
                 "title": "Hook",
-                "duration": 3,
+                "duration": hook_d,
                 "scene_setting": "Close-up face shot, eye-level, slight camera push-in. Clean background.",
                 "actor_delivery": "Conspiratorial whisper, leaning in, wide eyes, slight head shake",
                 "dialogue": hook if hook else "Okay so... nobody's talking about this."
@@ -450,7 +458,7 @@ def _screenplay_fallback(phase1: dict, phase2: dict) -> dict:
             {
                 "scene_number": 2,
                 "title": "Problem",
-                "duration": 9,
+                "duration": prob_d,
                 "scene_setting": "Medium shot, cut to b-roll of relevant imagery. Text overlay: key stat.",
                 "actor_delivery": "Frustrated energy, hand gestures emphasizing pain points, building tension",
                 "dialogue": f"Here's the thing about {topic} that nobody tells you... and it's actually kind of wild when you think about it."
@@ -458,7 +466,7 @@ def _screenplay_fallback(phase1: dict, phase2: dict) -> dict:
             {
                 "scene_number": 3,
                 "title": "Revelation",
-                "duration": 13,
+                "duration": rev_d,
                 "scene_setting": "Dynamic shot, text overlays appearing with key points. Quick cuts.",
                 "actor_delivery": "Building excitement, faster pace, confident posture, finger pointing",
                 "dialogue": f"But here's what I found out: {nugget_text}. Like... that changes everything, right?"
@@ -466,7 +474,7 @@ def _screenplay_fallback(phase1: dict, phase2: dict) -> dict:
             {
                 "scene_number": 4,
                 "title": "Proof",
-                "duration": 13,
+                "duration": proof_d,
                 "scene_setting": "Screen share or demonstration footage. Numbered list overlay.",
                 "actor_delivery": "Teacher mode, clear enunciation, pointing at visuals, nodding",
                 "dialogue": "Look - I'll show you exactly what I mean. Step one... step two... and boom. See that? The numbers don't lie."
@@ -474,7 +482,7 @@ def _screenplay_fallback(phase1: dict, phase2: dict) -> dict:
             {
                 "scene_number": 5,
                 "title": "CTA",
-                "duration": 7,
+                "duration": cta_d,
                 "scene_setting": "Back to face, slight zoom out, warm lighting. Follow button animation.",
                 "actor_delivery": "Friendly, inviting, direct eye contact, genuine smile",
                 "dialogue": "Save this for later. And follow because part 2 is where it gets really interesting."
