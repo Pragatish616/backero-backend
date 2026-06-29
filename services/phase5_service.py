@@ -57,10 +57,20 @@ def assemble_production_pack(supabase, brief_id: str) -> Phase5Response:
     p4d = p4.data[0] if p4.data else {}
 
     scenes = p3d.get("scenes", [])
+
+    # Build language label from code
+    lang_code = p1d.get("language", "EN") or "EN"
+    lang_labels = {
+        "EN": "English", "HI": "Hindi", "TA": "Tamil", "TE": "Telugu",
+        "KN": "Kannada", "ML": "Malayalam", "BN": "Bengali",
+        "MR": "Marathi", "GU": "Gujarati", "PA": "Punjabi",
+        "HIN-EN": "Hinglish", "TAM-EN": "Tanglish",
+    }
+
     meta = ProductionMeta(
-        title=brief_data.get("title", p1d.get("topic", "")),
-        actor=brief_data.get("creator_name", ""),
-        company="Backero",
+        title=brief_data.get("title", "") or p1d.get("topic", "") or p1d.get("hook_text", ""),
+        actor=p1d.get("content_creator", "") or p1d.get("on_camera_actor", "") or brief_data.get("creator_name", ""),
+        company=p1d.get("brand_company", "") or "Backero",
         platform=p1d.get("platform", ""),
         format=p2d.get("selected_format", ""),
         contentType=p2d.get("content_type", ""),
@@ -71,6 +81,8 @@ def assemble_production_pack(supabase, brief_id: str) -> Phase5Response:
         words=p3d.get("total_words", 0),
         verdict=p4d.get("overall_verdict", ""),
         score=p4d.get("quality_score", 0),
+        aspectRatio=p1d.get("aspect_ratio", "9:16") or "9:16",
+        language=lang_labels.get(lang_code, lang_code),
     )
 
     golden_rules = evaluate_golden_rules(scenes, p4d.get("checks"))
