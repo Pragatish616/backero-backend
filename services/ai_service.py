@@ -711,10 +711,31 @@ Follow this strategy exactly. Each scene's "job" must be fulfilled."""
 
 {constraint_block}"""
 
+    # Build language-specific example for the JSON template
+    lang_name_map = {
+        "EN": "English", "HI": "Hindi", "TA": "Tamil", "TE": "Telugu",
+        "KN": "Kannada", "ML": "Malayalam", "BN": "Bengali",
+        "MR": "Marathi", "GU": "Gujarati", "PA": "Punjabi",
+        "HIN-EN": "Hinglish", "TAM-EN": "Tanglish",
+    }
+    target_lang_name = lang_name_map.get(language, "English")
+    is_non_english = language != "EN"
+
+    lang_dialogue_note = ""
+    if is_non_english:
+        lang_dialogue_note = f"""
+
+⚠️ LANGUAGE OVERRIDE — READ THIS CAREFULLY:
+The "dialogue" field in EVERY scene MUST be written in {target_lang_name}.
+The "title" field MUST also be in {target_lang_name}.
+ONLY the JSON keys (scene_number, title, duration, scene_setting, actor_delivery, dialogue) stay in English.
+The VALUES of "dialogue" and "title" MUST be in {target_lang_name}. Do NOT write dialogue in English.
+The "scene_setting" and "actor_delivery" fields may remain in English (they are technical stage directions)."""
+
     prompt = f"""{strategy_block}
 
 CRITICAL LANGUAGE REQUIREMENT: {lang_instruction}
-ALL dialogue lines MUST be written in the specified language above. This is non-negotiable.
+ALL dialogue lines MUST be written in {target_lang_name}. This is non-negotiable.{lang_dialogue_note}
 
 Write a 5-scene viral video screenplay for:
 - Platform: {platform}
@@ -729,16 +750,16 @@ The ENTIRE screenplay is about the selected nugget. Do NOT introduce other facts
 
 Return ONLY JSON, no markdown wrapping:
 {{
-  "title": "video title",
+  "title": "video title in {target_lang_name}",
   "total_duration": {target_duration},
   "scenes": [
     {{
       "scene_number": 1,
       "title": "Hook",
       "duration": <seconds>,
-      "scene_setting": "camera shot, framing, movement, text overlays — plain text",
-      "actor_delivery": "tone, energy, physical cues — plain text",
-      "dialogue": "exact spoken words — plain conversational text, NO markdown"
+      "scene_setting": "camera shot, framing, movement, text overlays — plain text (English OK)",
+      "actor_delivery": "tone, energy, physical cues — plain text (English OK)",
+      "dialogue": "exact spoken words IN {target_lang_name.upper()} — the actor speaks {target_lang_name}, NOT English"
     }},
     ...5 scenes total...
   ]
