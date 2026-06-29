@@ -103,14 +103,19 @@ def validate_hook(brief_id: str, req: HookValidationRequest):
 def extract_nuggets(brief_id: str, req: NuggetExtractionRequest):
     sb = get_supabase()
     niche = ""
-    language = "EN"
+    # Use language from request body first (frontend sends current state)
+    # Fall back to DB value, then default to EN
+    language = req.language or ""
     try:
         p1 = sb.table("phase1_data").select("niche, language").eq("brief_id", brief_id).execute()
         if p1.data:
             niche = p1.data[0].get("niche", "")
-            language = p1.data[0].get("language", "EN") or "EN"
+            if not language:
+                language = p1.data[0].get("language", "EN") or "EN"
     except Exception:
         pass
+    if not language:
+        language = "EN"
 
     nuggets = phase1_service.extract_nuggets(
         topic=req.topic, research_text=req.research_text or "", niche=niche, language=language
