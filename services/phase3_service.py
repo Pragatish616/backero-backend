@@ -240,13 +240,10 @@ def generate_screenplay(supabase, brief_id: str) -> dict:
     nuggets = phase1.get("knowledge_nuggets") or []
 
     # ── CRITICAL FIX: Reconstruct selected_nugget from index ──────
-    # The DB stores selected_nugget_index (integer) but the AI service
-    # expects selected_nugget (dict). Reconstruct it here.
     selected_idx = phase1.get("selected_nugget_index")
     if selected_idx is not None and nuggets and 0 <= selected_idx < len(nuggets):
         phase1["selected_nugget"] = nuggets[selected_idx]
     elif nuggets:
-        # Fallback: if no index saved, use first nugget
         phase1["selected_nugget"] = nuggets[0]
 
     # ── Read user-selected duration ───────────────────────────────
@@ -256,74 +253,81 @@ def generate_screenplay(supabase, brief_id: str) -> dict:
     except (ValueError, TypeError):
         target_duration = 30
 
+    # ── Read user-selected language ───────────────────────────────
+    language = phase1.get("language", "EN") or "EN"
+
     # ── Try Claude AI first ──────────────────────────────────
-    scenes_raw = generate_screenplay_ai(phase1, phase2, target_duration=target_duration)
+    ai_result = generate_screenplay_ai(
+        phase1, phase2,
+        language=language,
+        target_duration=target_duration
+    )
 
-    # Safety check: the AI sometimes mis-numbers scenes or returns fewer
-    # than expected. If we didn't get a full 5-scene screenplay back,
-    # don't trust it — fall through to the reliable template generator
-    # instead of shipping a broken/incomplete screenplay.
-    if scenes_raw and len(scenes_raw) < 5:
-        print(f"[Phase3] AI returned only {len(scenes_raw)} scenes (expected 5) — using template fallback")
-        scenes_raw = None
+    # ai_result is a dict like {"title": ..., "total_duration": ..., "scenes": [...]}
+    # Extract the scenes list from it
+    ai_scenes_raw = None
+    if ai_result and isinstance(ai_result, dict):
+        raw_scenes = ai_result.get("scenes", [])
+        if isinstance(raw_scenes, list) and len(raw_scenes) >= 5:
+            ai_scenes_raw = raw_scenes
+        else:
+            print(f"[Phase3] AI returned {len(raw_scenes) if isinstance(raw_scenes, list) else 0} scenes (expected 5) — using template fallback")
 
-    ai_was_used = scenes_raw is not None
+    ai_was_used = ai_scenes_raw is not None
+    scenes = []
 
-    if scenes_raw:
-        scenes = []
-        for raw in scenes_raw:
+    if ai_scenes_raw:
+        # ── Map AI response fields → SceneBeat model fields ──────
+        # AI returns: scene_number, title, duration, scene_setting, actor_delivery, dialogue
+        # SceneBeat expects: sceneNum, name, timingStart, timingEnd, duration, dialogue, action, camera, actor, visual, audio, editMarkers
+        cumulative_time = 0.0
+        for raw in ai_scenes_raw:
             try:
-                cam_raw = raw.get("camera", {})
-                act_raw = raw.get("actor", {})
+                scene_duration = float(raw.get("duration", 5))
+                timing_start = cumulative_time
+                timing_end = cumulative_time + scene_duration
+                cumulative_time = timing_end
+
+                # Parse scene_setting string into camera + visual
+                scene_setting = raw.get("scene_setting", "")
+                actor_delivery = raw.get("actor_delivery", "")
+
                 beat = SceneBeat(
-                    # IMPORTANT: never trust the AI's own "sceneNum" field —
-                    # it has been observed to mis-number scenes (e.g.
-                    # starting at 2 instead of 1, skipping the hook scene).
-                    # Always assign sequential numbers ourselves based on
-                    # the actual order the AI returned the scenes in, so
-                    # scene numbering is always correct (1, 2, 3, 4, 5)
-                    # regardless of what number string the model wrote.
                     sceneNum=len(scenes) + 1,
-                    name=raw.get("name", f"SCENE {len(scenes)+1}"),
-                    timingStart=float(raw.get("timingStart", 0)),
-                    timingEnd=float(raw.get("timingEnd", 5)),
-                    duration=float(raw.get("duration", raw.get("timingEnd", 5) - raw.get("timingStart", 0))),
+                    name=raw.get("title", raw.get("name", f"SCENE {len(scenes)+1}")),
+                    timingStart=timing_start,
+                    timingEnd=timing_end,
+                    duration=scene_duration,
                     dialogue=raw.get("dialogue", ""),
-                    action=raw.get("action", ""),
+                    action=f"({actor_delivery})" if actor_delivery else "",
                     camera=Camera(
-                        shot=cam_raw.get("shot", "Medium"),
-                        angle=cam_raw.get("angle", "Eye level"),
-                        movement=cam_raw.get("movement", "Static"),
+                        shot=raw.get("camera", {}).get("shot", "Medium") if isinstance(raw.get("camera"), dict) else "Medium",
+                        angle=raw.get("camera", {}).get("angle", "Eye level") if isinstance(raw.get("camera"), dict) else "Eye level",
+                        movement=raw.get("camera", {}).get("movement", "Static") if isinstance(raw.get("camera"), dict) else "Static",
                     ),
                     actor=Actor(
-                        expression=act_raw.get("expression", "confident"),
-                        energy=int(act_raw.get("energy", 7)),
-                        pace=act_raw.get("pace", "medium"),
+                        expression=raw.get("actor", {}).get("expression", "confident") if isinstance(raw.get("actor"), dict) else "confident",
+                        energy=int(raw.get("actor", {}).get("energy", 7)) if isinstance(raw.get("actor"), dict) else 7,
+                        pace=raw.get("actor", {}).get("pace", "medium") if isinstance(raw.get("actor"), dict) else "medium",
                     ),
-                    visual=raw.get("visual", ""),
-                    audio=raw.get("audio", ""),
-                    editMarkers=[
-                        EditMarker(time=m.get("time", "0s"), event=m.get("event", "Cut"))
-                        for m in raw.get("editMarkers", [])
-                    ],
+                    visual=scene_setting,
+                    audio=raw.get("audio", "Background music"),
+                    editMarkers=generate_edit_markers(timing_start, timing_end),
                 )
                 scenes.append(beat)
             except Exception as e:
                 print(f"[Phase3] Scene parse error: {e}")
 
-        # If parsing errors dropped us below 5 scenes too, fall back to
-        # the template generator rather than shipping a partial screenplay.
         if len(scenes) < 5:
-            print(f"[Phase3] Only {len(scenes)} scenes parsed successfully — using template fallback")
+            print(f"[Phase3] Only {len(scenes)} scenes parsed — using template fallback")
             scenes = []
             ai_was_used = False
 
-    if not scenes_raw or not scenes:
+    if not scenes:
         # ── Fallback: template-based generation ─────────────
         print("[Phase3] Claude unavailable or returned invalid data — using template fallback")
         templates = get_scene_template(structure)
         templates = scale_templates_to_duration(templates, target_duration)
-        # Pass only the selected nugget (not all nuggets) to the template generator
         selected_nuggets = [phase1.get("selected_nugget", {})] if phase1.get("selected_nugget") else nuggets
         scenes = [generate_scene_beat(tmpl, phase1, phase2, selected_nuggets, i) for i, tmpl in enumerate(templates)]
         ai_was_used = False
