@@ -66,6 +66,23 @@ def get_scene_template(structure_name: str) -> list[dict]:
     return SCENE_TEMPLATES.get(key, SCENE_TEMPLATES["Step-by-Step"])
 
 
+def scale_templates_to_duration(templates: list[dict], target_seconds: int) -> list[dict]:
+    """Scale template timings proportionally to fit the target duration."""
+    if not templates:
+        return templates
+    original_end = max(t["end"] for t in templates)
+    if original_end <= 0:
+        return templates
+    ratio = target_seconds / original_end
+    scaled = []
+    for t in templates:
+        s = dict(t)
+        s["start"] = round(t["start"] * ratio, 1)
+        s["end"] = round(t["end"] * ratio, 1)
+        scaled.append(s)
+    return scaled
+
+
 def generate_edit_markers(start: float, end: float) -> list[EditMarker]:
     markers = []
     t = start
@@ -222,8 +239,25 @@ def generate_screenplay(supabase, brief_id: str) -> dict:
     structure = phase2.get("selected_structure", "Step-by-Step")
     nuggets = phase1.get("knowledge_nuggets") or []
 
+    # ── CRITICAL FIX: Reconstruct selected_nugget from index ──────
+    # The DB stores selected_nugget_index (integer) but the AI service
+    # expects selected_nugget (dict). Reconstruct it here.
+    selected_idx = phase1.get("selected_nugget_index")
+    if selected_idx is not None and nuggets and 0 <= selected_idx < len(nuggets):
+        phase1["selected_nugget"] = nuggets[selected_idx]
+    elif nuggets:
+        # Fallback: if no index saved, use first nugget
+        phase1["selected_nugget"] = nuggets[0]
+
+    # ── Read user-selected duration ───────────────────────────────
+    estimated_length = phase1.get("estimated_length", "")
+    try:
+        target_duration = int(estimated_length) if estimated_length else 30
+    except (ValueError, TypeError):
+        target_duration = 30
+
     # ── Try Claude AI first ──────────────────────────────────
-    scenes_raw = generate_screenplay_ai(phase1, phase2)
+    scenes_raw = generate_screenplay_ai(phase1, phase2, target_duration=target_duration)
 
     # Safety check: the AI sometimes mis-numbers scenes or returns fewer
     # than expected. If we didn't get a full 5-scene screenplay back,
@@ -288,7 +322,10 @@ def generate_screenplay(supabase, brief_id: str) -> dict:
         # ── Fallback: template-based generation ─────────────
         print("[Phase3] Claude unavailable or returned invalid data — using template fallback")
         templates = get_scene_template(structure)
-        scenes = [generate_scene_beat(tmpl, phase1, phase2, nuggets, i) for i, tmpl in enumerate(templates)]
+        templates = scale_templates_to_duration(templates, target_duration)
+        # Pass only the selected nugget (not all nuggets) to the template generator
+        selected_nuggets = [phase1.get("selected_nugget", {})] if phase1.get("selected_nugget") else nuggets
+        scenes = [generate_scene_beat(tmpl, phase1, phase2, selected_nuggets, i) for i, tmpl in enumerate(templates)]
         ai_was_used = False
 
     metrics = calculate_metrics(scenes)
