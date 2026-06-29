@@ -878,11 +878,17 @@ def generate_screenplay_ai(phase1: dict, phase2: dict, language: str = "EN",
         return _screenplay_fallback(phase1, phase2, duration)
 
     # ── Call 3: Critique & Improve ────────────────────────────────
-    try:
-        improved = _critique_and_improve(screenplay, language)
-        return improved
-    except Exception as e:
-        print(f"[AI] Critique call failed (using unimproved screenplay): {e}")
+    # Skip critique for non-English languages — Haiku tends to rewrite
+    # dialogue back to English, defeating the language instruction.
+    if language == "EN":
+        try:
+            improved = _critique_and_improve(screenplay, language)
+            return improved
+        except Exception as e:
+            print(f"[AI] Critique call failed (using unimproved screenplay): {e}")
+            return screenplay
+    else:
+        print(f"[AI] Skipping critique pass for non-English language ({language}) to preserve dialogue language")
         return screenplay
 
 
