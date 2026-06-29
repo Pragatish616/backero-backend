@@ -767,12 +767,79 @@ Return ONLY JSON, no markdown wrapping:
 
 All scene durations must sum to exactly {target_duration}."""
 
-    result = _ask(prompt, system_prompt, max_tokens=3000)
+    # Non-Latin scripts (Tamil, Hindi, Telugu, etc.) use 3-7x more tokens per
+    # character than English.  3000 tokens is enough for 5 English scenes but
+    # truncates Tamil/Hindi mid-JSON, causing parse failures and English fallback.
+    screenplay_max_tokens = 3000 if language == "EN" else 8000
+
+    result = _ask(prompt, system_prompt, max_tokens=screenplay_max_tokens)
+    if not result:
+        print(f"[AI] Screenplay Call 2 returned no result — trying simplified retry")
+        return _retry_simple_screenplay(phase1, language, target_duration)
+    try:
+        screenplay = _parse_json(result)
+        if isinstance(screenplay.get("scenes"), list) and len(screenplay["scenes"]) >= 5:
+            return screenplay
+        print(f"[AI] Screenplay Call 2 returned {len(screenplay.get('scenes', []))} scenes — trying simplified retry")
+        return _retry_simple_screenplay(phase1, language, target_duration)
+    except Exception as e:
+        print(f"[AI] Screenplay Call 2 JSON parse failed: {e} — trying simplified retry")
+        return _retry_simple_screenplay(phase1, language, target_duration)
+
+
+def _retry_simple_screenplay(phase1: dict, language: str, duration: int) -> Optional[dict]:
+    """
+    Simplified retry when the full screenplay prompt fails (common for non-English).
+    Uses a much shorter prompt with no strategy/examples/constraints to maximize
+    the chance of getting valid JSON back in the target language.
+    """
+    lang_instruction = LANGUAGE_INSTRUCTIONS.get(language, LANGUAGE_INSTRUCTIONS["EN"])
+    lang_name = {"EN": "English", "HI": "Hindi", "TA": "Tamil", "TE": "Telugu",
+                 "KN": "Kannada", "ML": "Malayalam", "BN": "Bengali", "MR": "Marathi",
+                 "GU": "Gujarati", "PA": "Punjabi", "HIN-EN": "Hinglish",
+                 "TAM-EN": "Tanglish"}.get(language, "English")
+
+    selected_nugget = phase1.get("selected_nugget", {})
+    nugget_text = selected_nugget.get("text", phase1.get("topic", ""))
+    topic = phase1.get("topic", "")
+    hook = phase1.get("hook_text", "") or phase1.get("hook", "")
+
+    hook_d = max(2, round(duration * 0.1))
+    setup_d = round(duration * 0.2)
+    reveal_d = round(duration * 0.28)
+    proof_d = round(duration * 0.28)
+    cta_d = duration - hook_d - setup_d - reveal_d - proof_d
+
+    prompt = f"""{lang_instruction}
+
+Write a 5-scene viral video script about: {topic}
+Core message: {nugget_text}
+Hook line: {hook}
+Total duration: {duration} seconds
+
+CRITICAL: ALL dialogue MUST be in {lang_name}. Not English. Write in {lang_name}.
+
+Return ONLY this JSON (dialogue values in {lang_name}):
+{{
+  "title": "title in {lang_name}",
+  "total_duration": {duration},
+  "scenes": [
+    {{"scene_number": 1, "title": "Hook", "duration": {hook_d}, "scene_setting": "Close-up face shot", "actor_delivery": "Excited, leaning in", "dialogue": "WRITE IN {lang_name.upper()}"}},
+    {{"scene_number": 2, "title": "Problem", "duration": {setup_d}, "scene_setting": "Medium shot", "actor_delivery": "Frustrated energy", "dialogue": "WRITE IN {lang_name.upper()}"}},
+    {{"scene_number": 3, "title": "Revelation", "duration": {reveal_d}, "scene_setting": "Dynamic shot with text overlay", "actor_delivery": "Building excitement", "dialogue": "WRITE IN {lang_name.upper()}"}},
+    {{"scene_number": 4, "title": "Proof", "duration": {proof_d}, "scene_setting": "Screen share or demo", "actor_delivery": "Teacher mode", "dialogue": "WRITE IN {lang_name.upper()}"}},
+    {{"scene_number": 5, "title": "CTA", "duration": {cta_d}, "scene_setting": "Back to face, warm lighting", "actor_delivery": "Friendly, direct", "dialogue": "WRITE IN {lang_name.upper()}"}}
+  ]
+}}"""
+
+    max_tok = 3000 if language == "EN" else 8000
+    result = _ask(prompt, "", max_tokens=max_tok)
     if not result:
         return None
     try:
         screenplay = _parse_json(result)
         if isinstance(screenplay.get("scenes"), list) and len(screenplay["scenes"]) >= 5:
+            print(f"[AI] Simplified retry succeeded — got {len(screenplay['scenes'])} scenes in {lang_name}")
             return screenplay
         return None
     except Exception:
