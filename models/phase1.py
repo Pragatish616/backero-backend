@@ -59,6 +59,7 @@ class HookValidationResponse(BaseModel):
 class NuggetExtractionRequest(BaseModel):
     topic: str
     research_text: Optional[str] = ""
+    language: Optional[str] = None
 
 
 class NuggetSelectionRequest(BaseModel):
