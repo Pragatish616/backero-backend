@@ -111,6 +111,12 @@ def upsert_phase1(supabase, brief_id: str, data: dict) -> dict:
         if hasattr(clean["selected_nugget"], "model_dump"):
             clean["selected_nugget"] = clean["selected_nugget"].model_dump()
 
+    # Keep selected_nugget JSONB in sync with selected_nugget_index
+    idx = clean.get("selected_nugget_index")
+    nuggets = clean.get("knowledge_nuggets", [])
+    if idx is not None and nuggets and 0 <= idx < len(nuggets):
+        clean["selected_nugget"] = nuggets[idx]
+
     result = supabase.table("phase1_data").upsert(clean, on_conflict="brief_id").execute()
     return result.data[0] if result.data else {}
 
