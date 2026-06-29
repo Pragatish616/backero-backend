@@ -247,9 +247,11 @@ def generate_screenplay(supabase, brief_id: str) -> dict:
         phase1["selected_nugget"] = nuggets[0]
 
     # ── Read user-selected duration ───────────────────────────────
-    estimated_length = phase1.get("estimated_length", "")
+    estimated_length = phase1.get("estimated_length", "") or ""
+    # Frontend saves as "60s", "30s", etc. — strip the 's' suffix
+    clean_length = estimated_length.replace("s", "").strip()
     try:
-        target_duration = int(estimated_length) if estimated_length else 30
+        target_duration = int(clean_length) if clean_length else 30
     except (ValueError, TypeError):
         target_duration = 30
 
