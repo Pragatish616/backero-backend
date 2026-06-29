@@ -207,9 +207,8 @@ def determine_verdict(checks: list[CheckItem], role_approvals: list[RoleApproval
     if critical_fail:
         return "REJECT"
     major_fail = any(c.result == "FAIL" and c.severity == "Major" and not c.overridden for c in checks)
-    any_pending = any(a.status != "Approved" for a in role_approvals)
     any_rejected = any(a.status == "Rejected" for a in role_approvals)
-    if major_fail or any_pending or any_rejected:
+    if major_fail or any_rejected:
         return "REVISE"
     return "SHIP"
 
