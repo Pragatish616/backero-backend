@@ -149,19 +149,24 @@ def get_selected_nugget(brief_id: str):
 @router.post("/{brief_id}/fluff-examples")
 def get_fluff_examples(brief_id: str, body: dict = {}):
     sb = get_supabase()
-    language = "EN"
+    language = body.get("language", "")
     topic = body.get("topic", "")
     niche = body.get("niche", "")
     try:
         p1 = sb.table("phase1_data").select("language, topic, niche").eq("brief_id", brief_id).execute()
         if p1.data:
-            language = p1.data[0].get("language", "EN") or "EN"
+            # Use request body language first; fall back to DB
+            if not language:
+                language = p1.data[0].get("language", "EN") or "EN"
             if not topic:
                 topic = p1.data[0].get("topic", "") or ""
             if not niche:
                 niche = p1.data[0].get("niche", "") or ""
     except Exception:
         pass
+
+    if not language:
+        language = "EN"
 
     from services.ai_service import generate_fluff_examples_ai
     examples = generate_fluff_examples_ai(topic=topic, niche=niche, language=language)
