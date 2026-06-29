@@ -101,7 +101,6 @@ def generate_scene_beat(template: dict, phase1: dict, phase2: dict, nuggets: lis
     style = phase1.get("content_style", "Demonstration")
     action_base = CONTENT_STYLE_ACTIONS.get(style, CONTENT_STYLE_ACTIONS["Demonstration"])
 
-    # Generate dialogue based on scene position
     name = template["name"]
     if idx == 0:
         dialogue = hook or f"Wait — did you know this about {topic}?"
@@ -130,7 +129,6 @@ def generate_scene_beat(template: dict, phase1: dict, phase2: dict, nuggets: lis
     end = template["end"]
     markers = generate_edit_markers(start, end)
 
-    # Add freeze marker for CTA scenes
     if "CTA" in name:
         markers.insert(0, EditMarker(time=f"{start:.1f}s", event="1.0s silence freeze before CTA"))
 
@@ -247,8 +245,8 @@ def generate_screenplay(supabase, brief_id: str) -> dict:
         phase1["selected_nugget"] = nuggets[0]
 
     # ── Read user-selected duration ───────────────────────────────
+    # Frontend saves as "60s", "30s", etc. — strip the 's' suffix safely
     estimated_length = phase1.get("estimated_length", "") or ""
-    # Frontend saves as "60s", "30s", etc. — strip the 's' suffix
     clean_length = estimated_length.replace("s", "").strip()
     try:
         target_duration = int(clean_length) if clean_length else 30
@@ -258,7 +256,7 @@ def generate_screenplay(supabase, brief_id: str) -> dict:
     # ── Read user-selected language ───────────────────────────────
     language = phase1.get("language", "EN") or "EN"
 
-    # ── Try Claude AI first ──────────────────────────────────
+    # ── Try Claude AI (3-call chain) ──────────────────────────────
     ai_result = generate_screenplay_ai(
         phase1, phase2,
         language=language,
@@ -266,7 +264,6 @@ def generate_screenplay(supabase, brief_id: str) -> dict:
     )
 
     # ai_result is a dict like {"title": ..., "total_duration": ..., "scenes": [...]}
-    # Extract the scenes list from it
     ai_scenes_raw = None
     if ai_result and isinstance(ai_result, dict):
         raw_scenes = ai_result.get("scenes", [])
@@ -280,8 +277,6 @@ def generate_screenplay(supabase, brief_id: str) -> dict:
 
     if ai_scenes_raw:
         # ── Map AI response fields → SceneBeat model fields ──────
-        # AI returns: scene_number, title, duration, scene_setting, actor_delivery, dialogue
-        # SceneBeat expects: sceneNum, name, timingStart, timingEnd, duration, dialogue, action, camera, actor, visual, audio, editMarkers
         cumulative_time = 0.0
         for raw in ai_scenes_raw:
             try:
@@ -290,7 +285,6 @@ def generate_screenplay(supabase, brief_id: str) -> dict:
                 timing_end = cumulative_time + scene_duration
                 cumulative_time = timing_end
 
-                # Parse scene_setting string into camera + visual
                 scene_setting = raw.get("scene_setting", "")
                 actor_delivery = raw.get("actor_delivery", "")
 
