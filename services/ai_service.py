@@ -217,29 +217,39 @@ def extract_nuggets_ai(topic: str, research_text: str = "", niche: str = "",
 {lang_instruction}
 IMPORTANT: The "text" field of every nugget MUST be written in the language specified above. The "type", "source", "rationale" fields may stay in English for technical compatibility, but the "text" must be in the target language.
 
-Your task: Extract exactly 3 DIFFERENT knowledge nuggets from the given topic/research. Each nugget must be:
-- Maximum 15 words
-- Punchy and scroll-stopping
-- Specific with numbers where possible
-- Unique angle (no overlap between the 3)
+Your task: Extract exactly 3 DIFFERENT knowledge nuggets that could each be the SINGLE CORE MESSAGE of a viral video.
 
-CRITICAL: Generate exactly 3 nuggets of these types:
-1. "Shocking Fact" - Counterintuitive data that makes people stop scrolling
-2. "Practical Hack" - Actionable tip they can use immediately
-3. "Story Hook" - Personal/emotional angle that builds connection
+CRITICAL EXTRACTION RULES:
+- If research text is provided, your nuggets MUST come directly FROM that research. Do NOT invent facts. Pull real claims, stats, or insights from the pasted text.
+- If no research is provided, generate nuggets based on the topic, but make them specific with real-world data points, not generic platitudes.
+- Each nugget should be a COMPLETE video premise — specific enough that a scriptwriter could build an entire 30-60 second video around just this one point.
+- Avoid vague nuggets like "most people get X wrong" — instead say WHAT they get wrong and include the real stat.
+
+Generate exactly 3 nuggets of these types:
+1. "Shocking Fact" - A counterintuitive data point or stat that stops scrolling. Must contain a NUMBER.
+2. "Practical Hack" - An actionable technique with a measurable outcome. Must include a TIMEFRAME or RESULT.
+3. "Story Hook" - A personal/emotional angle with a specific scenario. Must name a SPECIFIC situation.
 
 Return ONLY valid JSON array, no markdown:
 [
-  {{"type": "Shocking Fact", "text": "...", "source": "...", "rationale": "why this hooks viewers", "color": "#EF4444"}},
-  {{"type": "Practical Hack", "text": "...", "source": "...", "rationale": "why this hooks viewers", "color": "#22C55E"}},
-  {{"type": "Story Hook", "text": "...", "source": "...", "rationale": "why this hooks viewers", "color": "#F59E0B"}}
+  {{"type": "Shocking Fact", "text": "...", "source": "where this fact came from", "rationale": "why this hooks viewers", "color": "#EF4444"}},
+  {{"type": "Practical Hack", "text": "...", "source": "where this technique comes from", "rationale": "why this hooks viewers", "color": "#22C55E"}},
+  {{"type": "Story Hook", "text": "...", "source": "the real scenario this is based on", "rationale": "why this hooks viewers", "color": "#F59E0B"}}
 ]"""
+
+    research_section = ""
+    if research_text and len(research_text.strip()) > 50:
+        research_section = f"""
+RESEARCH TEXT (extract nuggets FROM this — do not ignore it):
+---
+{research_text[:4000]}
+---
+"""
 
     prompt = f"""Topic: {topic}
 Niche: {niche or 'General'}
-Research Context: {research_text or 'No additional research provided'}
-
-Generate 3 unique knowledge nuggets for this viral video. Return ONLY the JSON array."""
+{research_section}
+Generate 3 unique knowledge nuggets{' based on the research text above' if research_section else ' for this viral video'}. Each must be specific enough to build an entire video around. Return ONLY the JSON array."""
 
     result = _ask(prompt, system_prompt)
     if not result:
@@ -308,7 +318,8 @@ Generate 3 improved hook alternatives."""
         return validation_result
 
 
-def generate_screenplay_ai(phase1: dict, phase2: dict, language: str = "EN") -> dict:
+def generate_screenplay_ai(phase1: dict, phase2: dict, language: str = "EN",
+                           target_duration: int = 30) -> dict:
     """
     Phase 3: Generate screenplay using ONLY the selected nugget.
     CRITICAL: Uses selected_nugget, not all knowledge_nuggets.
@@ -329,10 +340,13 @@ def generate_screenplay_ai(phase1: dict, phase2: dict, language: str = "EN") -> 
     topic = phase1.get("topic", "")
     platform = phase1.get("platform", "YouTube Shorts")
     niche = phase1.get("niche", "")
-    hook = phase1.get("hook", "")
+    hook = phase1.get("hook_text", "") or phase1.get("hook", "")
+
+    # Read user-selected duration (passed from phase3_service)
+    duration = target_duration or 30
 
     content_type = phase2.get("content_type", "educational")
-    format_style = phase2.get("format", "talking_head")
+    format_style = phase2.get("selected_format", phase2.get("format", "talking_head"))
 
     previous_data = {
         "phase1": {
@@ -349,27 +363,37 @@ def generate_screenplay_ai(phase1: dict, phase2: dict, language: str = "EN") -> 
 
     lang_instruction = LANGUAGE_INSTRUCTIONS.get(language, LANGUAGE_INSTRUCTIONS["EN"])
 
+    # Calculate proportional beat timings based on target duration
+    hook_end = max(2, round(duration * 0.1))
+    setup_end = round(duration * 0.27)
+    reveal_end = round(duration * 0.55)
+    proof_end = round(duration * 0.85)
+
     prompt = f"""{lang_instruction}
 
 Generate a 5-scene viral video screenplay for:
 - Platform: {platform}
 - Topic: {topic}
-- Selected Nugget (USE THIS AS CORE MESSAGE): {nugget_text}
+- Selected Nugget (THIS IS THE CORE MESSAGE — build the ENTIRE script around this ONE point): {nugget_text}
 - Opening Hook: {hook}
 - Content Type: {content_type}
 - Format: {format_style}
+- TOTAL VIDEO DURATION: {duration} seconds (DO NOT exceed this)
 
-Create exactly 5 scenes with these beats:
-1. HOOK (0-3 sec): Thumb-stopping opener
-2. PROBLEM/SETUP (3-12 sec): Create tension or curiosity
-3. REVELATION (12-25 sec): Deliver the core insight
-4. PROOF/DEMO (25-38 sec): Show evidence or how-to
-5. CTA (38-45 sec): Clear next action
+CRITICAL: The ENTIRE screenplay must be about the selected nugget above. Do NOT introduce
+other facts, points, or nuggets. Every scene should reinforce this ONE message.
+
+Create exactly 5 scenes that fit within {duration} seconds total:
+1. HOOK (0-{hook_end} sec): Thumb-stopping opener using the hook text
+2. PROBLEM/SETUP ({hook_end}-{setup_end} sec): Create tension or curiosity around the nugget
+3. REVELATION ({setup_end}-{reveal_end} sec): Deliver the core insight from the selected nugget
+4. PROOF/DEMO ({reveal_end}-{proof_end} sec): Show evidence or how-to for the nugget's claim
+5. CTA ({proof_end}-{duration} sec): Clear next action
 
 Each scene needs:
 - scene_number (1-5)
 - title (beat name)
-- duration (seconds)
+- duration (seconds — all scenes must sum to exactly {duration})
 - scene_setting (camera, visuals, text overlays)
 - actor_delivery (tone, energy, physical cues)
 - dialogue (exact words - punchy, conversational, NO corporate speak)
@@ -377,12 +401,12 @@ Each scene needs:
 Return as JSON:
 {{
   "title": "video title",
-  "total_duration": 45,
+  "total_duration": {duration},
   "scenes": [
     {{
       "scene_number": 1,
       "title": "Hook",
-      "duration": 3,
+      "duration": {hook_end},
       "scene_setting": "Close-up, eye-level, slight push-in. No text overlay yet.",
       "actor_delivery": "Conspiratorial whisper, eyebrows raised, leaning toward camera",
       "dialogue": "Okay wait... nobody talks about this but..."
