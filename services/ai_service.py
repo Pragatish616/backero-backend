@@ -48,6 +48,7 @@ LANGUAGE_INSTRUCTIONS = {
     "GU": "LANGUAGE: Write ALL output — every word, phrase, and sentence — in Gujarati script (ગુજરાતી). Do NOT use English except for proper nouns.",
     "PA": "LANGUAGE: Write ALL output — every word, phrase, and sentence — in Punjabi/Gurmukhi script (ਪੰਜਾਬੀ). Do NOT use English except for proper nouns.",
     "HIN-EN": "LANGUAGE: Write ALL output in Hinglish — natural Hindi+English mix as spoken by urban Indian youth. Use Roman script throughout (not Devanagari). Example style: 'Yaar, ye trick try karo — 40% faster results milenge'.",
+    "TAM-EN": "LANGUAGE: Write ALL output in Tanglish — natural Tamil+English mix as spoken by urban Tamil youth. Use Roman script throughout (not Tamil script). Example style: 'Bro, indha trick try pannunga — 40% faster results kedaikum'.",
 }
 
 
@@ -266,6 +267,7 @@ def build_creator_voice_block(phase1: dict) -> str:
         "EN": "English", "HI": "Hindi", "TA": "Tamil", "TE": "Telugu",
         "KN": "Kannada", "ML": "Malayalam", "BN": "Bengali", "MR": "Marathi",
         "GU": "Gujarati", "PA": "Punjabi", "HIN-EN": "Hinglish",
+        "TAM-EN": "Tanglish",
     }.get(language, "English")
 
     block = f"""<creator_voice>
@@ -465,6 +467,7 @@ def generate_fluff_examples_ai(topic: str, niche: str = "", language: str = "EN"
         "EN": "English", "HI": "Hindi", "TA": "Tamil", "TE": "Telugu",
         "KN": "Kannada", "ML": "Malayalam", "BN": "Bengali",
         "MR": "Marathi", "GU": "Gujarati", "PA": "Punjabi",
+        "HIN-EN": "Hinglish", "TAM-EN": "Tanglish",
     }.get(language, "English")
 
     # UPGRADE 2: Role-identity
@@ -710,6 +713,9 @@ Follow this strategy exactly. Each scene's "job" must be fulfilled."""
 
     prompt = f"""{strategy_block}
 
+CRITICAL LANGUAGE REQUIREMENT: {lang_instruction}
+ALL dialogue lines MUST be written in the specified language above. This is non-negotiable.
+
 Write a 5-scene viral video screenplay for:
 - Platform: {platform}
 - Niche: {niche}
@@ -773,6 +779,8 @@ TASKS:
 2. Identify the single WEAKEST dialogue line across all 5 scenes
 3. Rewrite ONLY that one line to be 2x more scroll-stopping (keep same meaning, make it punchier)
 4. Return the FULL improved screenplay with that one line replaced
+
+CRITICAL: The rewritten line and ALL dialogue MUST remain in the same language as the original screenplay. {lang_instruction}
 
 Return ONLY JSON:
 {{
