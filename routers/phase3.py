@@ -66,7 +66,8 @@ def regenerate_scene(brief_id: str, scene_num: int, body: dict = {}):
             raise HTTPException(404, f"Scene {scene_num} not found")
 
         # Try targeted AI regeneration first
-        new_scene = regenerate_scene_ai(existing_scene, phase1, phase2, direction)
+        language = phase1.get("language", "EN") or "EN"
+        new_scene = regenerate_scene_ai(existing_scene, phase1, phase2, direction, language=language)
 
         if new_scene:
             # Update the specific scene in DB
