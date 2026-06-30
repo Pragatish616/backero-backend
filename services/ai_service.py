@@ -369,23 +369,32 @@ def _nugget_fallback(topic: str, niche: str) -> list[dict]:
         {
             "type": "Shocking Fact",
             "text": f"Most people get {topic} completely wrong - here's the data",
-            "source": "Industry research",
-            "rationale": "Creates immediate curiosity gap",
+            "source_hint": "Industry research",
+            "why_viral": "Creates immediate curiosity gap",
+            "brain_system": "amygdala",
+            "emotional_trigger": "Surprise + Fear (intuition violated)",
+            "pattern_interrupt_score": 7,
             "color": "#EF4444"
-        },
-        {
-            "type": "Practical Hack",
-            "text": f"The 2-minute {topic} trick that experts use daily",
-            "source": "Expert interviews",
-            "rationale": "Promises quick actionable value",
-            "color": "#22C55E"
         },
         {
             "type": "Story Hook",
             "text": f"I tested {topic} for 30 days - the results shocked me",
-            "source": "Personal experiment",
-            "rationale": "Personal narrative builds trust",
+            "source_hint": "Personal experiment",
+            "why_viral": "Personal narrative builds trust",
+            "brain_system": "tpj_social",
+            "emotional_trigger": "Empathy + Curiosity (shared struggle)",
+            "pattern_interrupt_score": 7,
             "color": "#F59E0B"
+        },
+        {
+            "type": "Practical Hack",
+            "text": f"The 2-minute {topic} trick that experts use daily",
+            "source_hint": "Expert interviews",
+            "why_viral": "Promises quick actionable value",
+            "brain_system": "prefrontal",
+            "emotional_trigger": "Hope + Curiosity (easy fix)",
+            "pattern_interrupt_score": 6,
+            "color": "#22C55E"
         }
     ]
 
@@ -405,21 +414,31 @@ def extract_nuggets_ai(topic: str, research_text: str = "", niche: str = "",
     system_prompt = f"""You are the viral content strategist who identified the single core insight behind 500+ short-form videos that each crossed 10M views. You do not brainstorm — you extract. You read raw research the way a diamond cutter reads rough stone: you find the ONE fracture line where a single tap releases a gem that makes millions of people stop scrolling.
 
 {lang_instruction}
-IMPORTANT: The "text" field of every nugget MUST be written in the language specified above. The "type", "source", "rationale" fields may stay in English for technical compatibility.
+IMPORTANT: The "text" field of every nugget MUST be written in the language specified above. The "type", "source_hint", "why_viral" fields may stay in English for technical compatibility.
 
-Your task: Extract exactly 3 DIFFERENT knowledge nuggets that could each be the SINGLE CORE MESSAGE of a viral video.
+Your task: Extract exactly 3 DIFFERENT knowledge nuggets forming a Neural Escalation Sequence:
+1. Shocking Fact → Amygdala-driven, stops the scroll in <1.5 seconds
+2. Story Hook → TPJ/social brain activation, builds empathy over 3-5 seconds
+3. Practical Hack → Prefrontal cortex engagement, triggers "I should do this"
+
+NUGGET-SPECIFIC WORD LIMITS (STRICT):
+- Shocking Fact: MAX 15 WORDS. Simple subject-verb-object. Processable in <1.5 seconds of audio.
+- Story Hook: MAX 25 WORDS. Can use contrast ("I did X. The result was Y.") or question structure.
+- Practical Hack: MAX 20 WORDS. Can include one causal connector ("because", "so", "→").
 
 EXTRACTION RULES:
 - If research text is provided, your nuggets MUST come directly FROM that research. Do NOT invent facts.
 - Each nugget is a COMPLETE video premise — specific enough that a scriptwriter could build an entire 30-60 second video around just this one point.
+- MUST contain a viral-worthy number, percentage, or specific claim — vague nuggets are rejected.
 - Avoid vague nuggets like "most people get X wrong" — instead say WHAT they get wrong and include the real stat.
 - No markdown formatting. Plain text only.
+- FORBIDDEN PHRASES: "revolutionary", "game-changing", "groundbreaking", "amazing", "incredible", "unlock", "discover", "in today's world", "tips", "hack" as a noun.
 
 Return ONLY valid JSON array, no markdown:
 [
-  {{"type": "Shocking Fact", "text": "...", "source": "where this fact came from", "rationale": "why this hooks viewers", "color": "#EF4444"}},
-  {{"type": "Practical Hack", "text": "...", "source": "where this technique comes from", "rationale": "why this hooks viewers", "color": "#22C55E"}},
-  {{"type": "Story Hook", "text": "...", "source": "the real scenario this is based on", "rationale": "why this hooks viewers", "color": "#F59E0B"}}
+  {{"type": "Shocking Fact", "text": "...", "source_hint": "where this fact came from", "why_viral": "why this hooks viewers", "brain_system": "amygdala", "emotional_trigger": "Fear + Surprise (brief explanation)", "pattern_interrupt_score": 8, "color": "#EF4444"}},
+  {{"type": "Story Hook", "text": "...", "source_hint": "the real scenario", "why_viral": "why this hooks viewers", "brain_system": "tpj_social", "emotional_trigger": "Empathy + Curiosity (brief explanation)", "pattern_interrupt_score": 7, "color": "#F59E0B"}},
+  {{"type": "Practical Hack", "text": "...", "source_hint": "where this technique comes from", "why_viral": "why this hooks viewers", "brain_system": "prefrontal", "emotional_trigger": "Hope + Curiosity (brief explanation)", "pattern_interrupt_score": 7, "color": "#22C55E"}}
 ]"""
 
     research_section = ""
@@ -674,13 +693,28 @@ Write dialogue that matches this ENERGY and SPECIFICITY level. Do not copy — m
     constraint_block = f"""
 <hard_constraints>
 THESE ARE NON-NEGOTIABLE. VIOLATING ANY ONE MEANS THE SCRIPT FAILS:
+
+DIALOGUE RULES:
 1. Hook (Scene 1 dialogue) must be 8 WORDS OR FEWER. Count them.
 2. BANNED WORDS — do NOT use any of these anywhere in dialogue: {', '.join(all_banned)}
 3. ALL dialogue must use contractions (you're, it's, they're, don't, can't — NEVER "you are", "it is", "do not", "can not")
 4. Scene 3 MUST contain at least one specific number with %, $, or a specific timeframe
-5. The FINAL line of Scene 5 must be either a QUESTION or an incomplete sentence that creates an open loop (ends with "..." or a question mark)
+5. The FINAL line of Scene 5 must be either a QUESTION or an incomplete sentence (ends with "..." or "?")
 6. NEVER use markdown formatting. No **bold**, no # headers, no * bullets. Plain conversational text only.
 7. Dialogue must sound like a real human said it to a friend. Not like a blog post, article, or AI output.
+8. STACCATO SENTENCES: Dialogue = 1–8 word beats. Hard stops. No conjunctions chaining clauses. Drum-like rhythm.
+9. Bridge words between sentences: "And...", "But here's the thing...", "Which means...", "So now..."
+
+GOLDEN RULES (from PersonalBrandLaunch viral methodology):
+10. DEMONSTRATION-FIRST: For every line, ask "Can this be SHOWN instead of SAID?" If yes, move it to scene_setting/action. Dialogue is the fallback, not the default.
+11. SHOW DON'T TELL: If dialogue states a number, it MUST appear as text overlay in scene_setting. If dialogue names an object, the object must be visible.
+12. NO TALKING HEAD >2 SECONDS: After 2s of static shot, you MUST specify a visual change (cut, text overlay, prop, gesture, B-roll insert) in scene_setting.
+13. HOOK PARSEABLE MUTED: Scene 1's scene_setting + text overlay alone must carry the full message without audio.
+14. BROAD → NARROW → NICHE: Scene 1 = broad (anyone scrolling stops). Scenes 2-4 = narrow (target audience gets value). Scene 5 = niche (only right people act on CTA).
+15. TRI-MODAL CONVERGENCE IN 0-1.5s: Scene 1 must specify what the viewer SEES + READS + HEARS all within 1.5 seconds.
+16. ACTION-INTEGRATED DIALOGUE: Every scene's actor_delivery must specify a PHYSICAL ACTION the actor does while speaking (gesture, prop interaction, movement).
+17. SILENT MOMENT BEFORE CTA: Scene 5 must begin with a 1.0s pause/freeze before the CTA line.
+18. CTA must contain an action verb: save, follow, comment, share, link, watch, or DM.
 </hard_constraints>"""
 
     strategy_block = ""
@@ -757,15 +791,19 @@ Return ONLY JSON, no markdown wrapping:
       "scene_number": 1,
       "title": "Hook",
       "duration": <seconds>,
-      "scene_setting": "camera shot, framing, movement, text overlays — plain text (English OK)",
-      "actor_delivery": "tone, energy, physical cues — plain text (English OK)",
-      "dialogue": "exact spoken words IN {target_lang_name.upper()} — the actor speaks {target_lang_name}, NOT English"
+      "scene_setting": "camera shot, framing, movement, TEXT OVERLAY content, B-roll inserts — what the viewer SEES. Plain text, English OK. MUST include text overlay for muted viewing.",
+      "actor_delivery": "tone, energy level (1-10), physical action the actor performs WHILE speaking, eye line, pace — plain text, English OK. Every line MUST have a physical action.",
+      "dialogue": "exact spoken words IN {target_lang_name.upper()} — staccato beats, 1-8 words per sentence, hard stops. The actor speaks {target_lang_name}, NOT English.",
+      "audio": "SFX cue, music mood, voice pattern (whisper/normal/emphatic). Must specify audio for first 0.5s of Scene 1."
     }},
     ...5 scenes total...
   ]
 }}
 
-All scene durations must sum to exactly {target_duration}."""
+TIMING RULES:
+- All scene durations must sum to exactly {target_duration}.
+- Scene 1 (Hook): 2-4 seconds max.
+- Scene 5 (CTA): 3-5 seconds, starts with 1.0s silence."""
 
     # Non-Latin scripts (Tamil, Hindi, Telugu, etc.) use 3-7x more tokens per
     # character than English.  3000 tokens is enough for 5 English scenes but
@@ -818,17 +856,19 @@ Hook line: {hook}
 Total duration: {duration} seconds
 
 CRITICAL: ALL dialogue MUST be in {lang_name}. Not English. Write in {lang_name}.
+DIALOGUE STYLE: Staccato sentences. 1-8 words per beat. Hard stops. No long sentences.
+GOLDEN RULES: Scene 1 text overlay must work on mute. Every scene needs a physical actor action. Scene 5 starts with 1s pause.
 
 Return ONLY this JSON (dialogue values in {lang_name}):
 {{
   "title": "title in {lang_name}",
   "total_duration": {duration},
   "scenes": [
-    {{"scene_number": 1, "title": "Hook", "duration": {hook_d}, "scene_setting": "Close-up face shot", "actor_delivery": "Excited, leaning in", "dialogue": "WRITE IN {lang_name.upper()}"}},
-    {{"scene_number": 2, "title": "Problem", "duration": {setup_d}, "scene_setting": "Medium shot", "actor_delivery": "Frustrated energy", "dialogue": "WRITE IN {lang_name.upper()}"}},
-    {{"scene_number": 3, "title": "Revelation", "duration": {reveal_d}, "scene_setting": "Dynamic shot with text overlay", "actor_delivery": "Building excitement", "dialogue": "WRITE IN {lang_name.upper()}"}},
-    {{"scene_number": 4, "title": "Proof", "duration": {proof_d}, "scene_setting": "Screen share or demo", "actor_delivery": "Teacher mode", "dialogue": "WRITE IN {lang_name.upper()}"}},
-    {{"scene_number": 5, "title": "CTA", "duration": {cta_d}, "scene_setting": "Back to face, warm lighting", "actor_delivery": "Friendly, direct", "dialogue": "WRITE IN {lang_name.upper()}"}}
+    {{"scene_number": 1, "title": "Hook", "duration": {hook_d}, "scene_setting": "Close-up face shot. TEXT OVERLAY: hook phrase.", "actor_delivery": "Excited, leaning in, eyes wide. Energy: 9/10.", "dialogue": "WRITE IN {lang_name.upper()}", "audio": "Whoosh SFX at 0.0s + trending audio"}},
+    {{"scene_number": 2, "title": "Problem", "duration": {setup_d}, "scene_setting": "Medium shot, B-roll insert at 2s", "actor_delivery": "Frustrated energy, hand gestures. Energy: 7/10.", "dialogue": "WRITE IN {lang_name.upper()}", "audio": "Background music, subtle tension"}},
+    {{"scene_number": 3, "title": "Revelation", "duration": {reveal_d}, "scene_setting": "Dynamic shot with number stat as text overlay", "actor_delivery": "Building excitement, pointing. Energy: 8/10.", "dialogue": "WRITE IN {lang_name.upper()} — MUST include a specific number/stat", "audio": "Music builds, impact SFX on stat"}},
+    {{"scene_number": 4, "title": "Proof", "duration": {proof_d}, "scene_setting": "Screen share or demo. Step list overlay.", "actor_delivery": "Teacher mode, pointing at visuals. Energy: 8/10.", "dialogue": "WRITE IN {lang_name.upper()}", "audio": "Background music, medium energy"}},
+    {{"scene_number": 5, "title": "CTA", "duration": {cta_d}, "scene_setting": "Back to face, warm lighting. 1.0s freeze before CTA. Follow button animation.", "actor_delivery": "Friendly, direct eye contact, points at camera. Energy: 7/10.", "dialogue": "WRITE IN {lang_name.upper()} — must end with ... or ? and include save/follow/comment", "audio": "Music fade, cash register SFX"}}
   ]
 }}"""
 
@@ -960,11 +1000,12 @@ def generate_screenplay_ai(phase1: dict, phase2: dict, language: str = "EN",
 
 
 def _screenplay_fallback(phase1: dict, phase2: dict, duration: int = 30) -> dict:
-    """Fallback screenplay when API fails — respects target duration"""
+    """Fallback screenplay when API fails — respects target duration and language"""
     topic = phase1.get("topic", "your topic")
     hook = phase1.get("hook_text", "") or phase1.get("hook", "Wait, did you know this?")
     selected_nugget = phase1.get("selected_nugget", {})
     nugget_text = selected_nugget.get("text", f"the truth about {topic}")
+    language = phase1.get("language", "EN") or "EN"
 
     d = duration
     hook_d = max(2, round(d * 0.1))
@@ -972,6 +1013,12 @@ def _screenplay_fallback(phase1: dict, phase2: dict, duration: int = 30) -> dict
     rev_d = round(d * 0.28)
     proof_d = round(d * 0.28)
     cta_d = d - hook_d - prob_d - rev_d - proof_d
+
+    # For non-English fallback, try a simple AI call for dialogue only
+    if language != "EN":
+        lang_result = _retry_simple_screenplay(phase1, language, duration)
+        if lang_result:
+            return lang_result
 
     return {
         "title": f"The Truth About {topic}",
@@ -981,41 +1028,46 @@ def _screenplay_fallback(phase1: dict, phase2: dict, duration: int = 30) -> dict
                 "scene_number": 1,
                 "title": "Hook",
                 "duration": hook_d,
-                "scene_setting": "Close-up face shot, eye-level, slight camera push-in. Clean background.",
-                "actor_delivery": "Conspiratorial whisper, leaning in, wide eyes, slight head shake",
-                "dialogue": hook if hook else "Okay so... nobody's talking about this."
+                "scene_setting": "Close-up face shot, eye-level, slight camera push-in. Clean background. TEXT OVERLAY: key phrase from hook.",
+                "actor_delivery": "Conspiratorial whisper, leaning in, wide eyes, slight head shake. Energy: 9/10.",
+                "dialogue": hook if hook else "Okay so... nobody's talking about this.",
+                "audio": "Trending audio hit at 0.0s + whoosh SFX. Silence for 0.3s before first word."
             },
             {
                 "scene_number": 2,
                 "title": "Problem",
                 "duration": prob_d,
-                "scene_setting": "Medium shot, cut to b-roll of relevant imagery. Text overlay: key stat.",
-                "actor_delivery": "Frustrated energy, hand gestures emphasizing pain points, building tension",
-                "dialogue": f"Here's the thing about {topic} that nobody tells you... and it's actually kind of wild when you think about it."
+                "scene_setting": "Medium shot, cut to b-roll of relevant imagery. Text overlay: key stat. B-cam insert at 2s mark.",
+                "actor_delivery": "Frustrated energy, hand gestures emphasizing pain points, building tension. Energy: 7/10. Holds up phone/prop.",
+                "dialogue": f"Here's the thing about {topic} that nobody tells you. And it's actually wild.",
+                "audio": "Background music continues, subtle emphasis SFX on stat reveal."
             },
             {
                 "scene_number": 3,
                 "title": "Revelation",
                 "duration": rev_d,
-                "scene_setting": "Dynamic shot, text overlays appearing with key points. Quick cuts.",
-                "actor_delivery": "Building excitement, faster pace, confident posture, finger pointing",
-                "dialogue": f"But here's what I found out: {nugget_text}. Like... that changes everything, right?"
+                "scene_setting": "Dynamic shot, text overlays appearing with key points. Quick cuts every 2s. Number stat as large text overlay.",
+                "actor_delivery": "Building excitement, faster pace, confident posture, finger pointing at camera. Energy: 8/10.",
+                "dialogue": f"But here's what I found. {nugget_text}. That changes everything.",
+                "audio": "Music builds. Impact SFX on stat reveal."
             },
             {
                 "scene_number": 4,
                 "title": "Proof",
                 "duration": proof_d,
-                "scene_setting": "Screen share or demonstration footage. Numbered list overlay.",
-                "actor_delivery": "Teacher mode, clear enunciation, pointing at visuals, nodding",
-                "dialogue": "Look - I'll show you exactly what I mean. Step one... step two... and boom. See that? The numbers don't lie."
+                "scene_setting": "Screen share or demonstration footage. Numbered list overlay. B-roll of results.",
+                "actor_delivery": "Teacher mode, clear enunciation, pointing at visuals, nodding. Energy: 8/10.",
+                "dialogue": "Look. I'll show you. Step one. Step two. And boom. See that? Numbers don't lie.",
+                "audio": "Background music, medium energy. Subtle click SFX on each step."
             },
             {
                 "scene_number": 5,
                 "title": "CTA",
                 "duration": cta_d,
-                "scene_setting": "Back to face, slight zoom out, warm lighting. Follow button animation.",
-                "actor_delivery": "Friendly, inviting, direct eye contact, genuine smile",
-                "dialogue": "Save this for later. And follow because part 2 is where it gets really interesting..."
+                "scene_setting": "Back to face, slight zoom out, warm lighting. Follow button animation overlay. 1.0s freeze before CTA.",
+                "actor_delivery": "Friendly, inviting, direct eye contact, genuine smile. Energy: 7/10. Points at camera on 'follow'.",
+                "dialogue": "Save this for later. And follow because part 2 is where it gets really interesting...",
+                "audio": "Music fade. Cash register SFX on 'save'. Silence after final word."
             }
         ]
     }
