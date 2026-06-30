@@ -10,8 +10,13 @@ from typing import Optional, List
 class KnowledgeNugget(BaseModel):
     type: str
     text: str
-    source: Optional[str] = None
-    rationale: Optional[str] = None
+    source: Optional[str] = None       # legacy field
+    rationale: Optional[str] = None     # legacy field
+    source_hint: Optional[str] = None   # new: where this fact came from
+    why_viral: Optional[str] = None     # new: why this hooks viewers
+    brain_system: Optional[str] = None  # new: amygdala / tpj_social / prefrontal
+    emotional_trigger: Optional[str] = None  # new: Fear + Surprise etc.
+    pattern_interrupt_score: Optional[int] = None  # new: 1-10
     color: Optional[str] = None
 
 
